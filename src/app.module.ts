@@ -3,14 +3,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { configService } from './config/config.service';
-import { ItemController } from './item/item.controller';
-import { ItemService } from './item/item.service';
+import { CatModule } from './models/cat/cats.module';
+
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot(configService.getTypeOrmConfig())
+    CatModule,
+    TypeOrmModule.forRoot(configService.getTypeOrmConfig()),
   ],
-  controllers: [AppController, ItemController],
-  providers: [AppService, ItemService],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule { }
