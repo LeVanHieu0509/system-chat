@@ -1,0 +1,13 @@
+{
+  // Điều này có nghĩa là các cấu hình chung từ tệp tsconfig.json gốc sẽ được áp dụng ở đây,
+  // và các giá trị trong file hiện tại sẽ ghi đè nếu cần thiết.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declaration": true, //TypeScript sẽ tạo các tệp .d.ts
+    "outDir": "../../dist/libs/common" //Thư mục đầu ra cho các tệp .js và .d.ts sau khi biên dịch
+  },
+  "include": ["src/**/*"], //Tùy chọn này chỉ định rằng TypeScript sẽ bao gồm tất cả các file trong thư mục src
+
+  // Đây là danh sách các thư mục và file mà TypeScript sẽ bỏ qua, không biên dịch
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

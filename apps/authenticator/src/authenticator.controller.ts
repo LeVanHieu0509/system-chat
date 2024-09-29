@@ -1,11 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
+import { AuthenticatorService } from './authenticator.service';
 
 @Controller()
-export class AppController {
-
+export class AuthenticatorController {
   //Controllers are responsible for handling incoming requests and returning responses to the client.
-  constructor(private readonly appService: AppService) { }
+  constructor(private readonly appService: AuthenticatorService) {}
 
   @Get()
   getHello(): string {
