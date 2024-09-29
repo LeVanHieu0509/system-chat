@@ -1,4 +1,4 @@
-import { isShallowEqual } from '../../../../src/utils/index';
+import { isShallowEqual } from '../../../utils/index';
 import NodeLink from '.';
 
 class DoublyLinkedList {

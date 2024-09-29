@@ -11,11 +11,20 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
+    "resolveJsonModule": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false
-  }
+    "noFallthroughCasesInSwitch": false,
+    "paths": {
+      "@app/repositories": ["libs/repositories"],
+      "@app/repositories/*": ["libs/repositories/*"],
+      "@app/config": ["libs/config/src"],
+      "@app/config/*": ["libs/config/src/*"],
+    },
+  },
+  "include": ["apps/**/*", "libs/**/*"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
 }
