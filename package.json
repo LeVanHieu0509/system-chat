@@ -2,6 +2,7 @@
   "name": "system-chat",
   "version": "0.0.1",
   "description": "",
+  "module": "commonjs",
   "author": "",
   "private": true,
   "license": "UNLICENSED",
@@ -32,7 +33,8 @@
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "typeorm:migration:generate": "npm run typeorm -- migration:generate -n",
     "typeorm:migration:run": "npm run typeorm -- migration:run",
-    "dev:local": "yarn dev & yarn dev:auth"
+    "dev:local": "yarn dev & yarn dev:auth",
+    "build:local": "yarn build:auth & yarn build:gateway"
   },
   "dependencies": {
     "@apollo/server": "^4.9.2",
@@ -55,7 +57,7 @@
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.0",
-    "typeorm": "^0.3.17"
+    "typeorm": "^0.3.20"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",
