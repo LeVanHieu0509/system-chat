@@ -1,0 +1,43 @@
+version: '3'
+
+volumes:
+  s3:
+  postgres:
+  redis:
+  rabbitmq:
+
+services:
+  postgres:
+    image: postgres:13-alpine
+    restart: unless-stopped
+    environment: { POSTGRES_PASSWORD: postgres }
+    ports: [127.0.0.1:15432:5432]
+    volumes: [postgres:/var/lib/postgresql/data]
+
+  s3:
+    image: minio/minio
+    restart: unless-stopped
+    ports: [127.0.0.1:19000:9000, 127.0.0.1:19001:9001]
+    command: [server, /data, --console-address=:9001]
+    environment:
+      MINIO_ROOT_USER: ABCDE
+      MINIO_ROOT_PASSWORD: FGHLMNOP
+    volumes: [s3:/data]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports: [127.0.0.1:16379:6379]
+    volumes: [redis:/data]
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - rabbitmq:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq
