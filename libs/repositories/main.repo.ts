@@ -7,6 +7,7 @@ import {
 import { BaseClient } from './base.client';
 import { PAGINATION } from '@app/common/constants';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { UtilsService } from 'libs/utils/src';
 
 export type Operation = PrismaClient;
 
@@ -300,25 +301,25 @@ export class MainRepo
   }
 
   async cleanDbLog() {
-    // if (this._logClient) {
-    //   const format = 'YYYY-MM-DD';
-    //   const today = UtilsService.getInstance().toDayJs(new Date());
-    //   let regexStr = '';
-    //   for (let i = 5; i > 0; i--) {
-    //     const prevDay = today.set('day', Number(`-${i}`)).format(format);
-    //     regexStr += prevDay + '|';
-    //   }
-    //   const collections = await this._logClient
-    //     .db()
-    //     .listCollections({}, { nameOnly: true })
-    //     .toArray();
-    //   collections.forEach(({ name }) => {
-    //     this._logClient
-    //       .db()
-    //       .collection(name)
-    //       .deleteMany({ params: { $regex: new RegExp(regexStr) } })
-    //       .then((val) => console.log(`name, val`, name, val));
-    //   });
-    // }
+    if (this._logClient) {
+      const format = 'YYYY-MM-DD';
+      const today = UtilsService.getInstance().toDayJs(new Date());
+      let regexStr = '';
+      for (let i = 5; i > 0; i--) {
+        const prevDay = today.set('day', Number(`-${i}`)).format(format);
+        regexStr += prevDay + '|';
+      }
+      const collections = await this._logClient
+        .db()
+        .listCollections({}, { nameOnly: true })
+        .toArray();
+      collections.forEach(({ name }) => {
+        this._logClient
+          .db()
+          .collection(name)
+          .deleteMany({ params: { $regex: new RegExp(regexStr) } })
+          .then((val) => console.log(`name, val`, name, val));
+      });
+    }
   }
 }
