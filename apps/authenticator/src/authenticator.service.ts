@@ -1,8 +1,14 @@
-import { QUEUES } from '@app/common';
 import { OTP_TYPE } from '@app/common/constants';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { VALIDATE_MESSAGE } from '@app/common/validate-message';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { OTPRequestDto } from 'libs/dto/src';
+import { MainRepo } from 'libs/repositories/main.repo';
 
 const HiddenChar = '*********';
 const REASON = {
@@ -18,7 +24,7 @@ const REASON = {
 export class AuthenticatorService {
   private readonly _logger: Logger = new Logger(AuthenticatorService.name);
 
-  constructor() {} // @Inject(QUEUES.WALLET) private readonly _clientWallet: ClientProxy,
+  constructor(private readonly _repo: MainRepo) {} // @Inject(QUEUES.WALLET) private readonly _clientWallet: ClientProxy,
 
   getHello(): string {
     return 'Hello World!';
@@ -30,14 +36,16 @@ export class AuthenticatorService {
     const { phone, email, type } = input;
 
     if (type === OTP_TYPE.SIGN_UP) {
-      // const isEmailExist = await this._repo
-      //   .getAccount()
-      //   .count({ where: { email } });
-      // if (isEmailExist) {
-      //   throw new BadRequestException([
-      //     { field: 'email', message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_EXIST },
-      //   ]);
-      // }
+      const isEmailExist = await this._repo
+        .getAccount()
+        .count({ where: { email } });
+
+      console.log({ isEmailExist });
+      if (isEmailExist) {
+        throw new BadRequestException([
+          { field: 'email', message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_EXIST },
+        ]);
+      }
     }
 
     // const key = email ? email : UtilsService.getInstance().toIntlPhone(phone);

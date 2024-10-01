@@ -4,9 +4,10 @@ import { AuthenticatorService } from './authenticator.service';
 import { HttpModule } from '@nestjs/axios';
 import { APP_FILTER } from '@nestjs/core';
 import { HttpExceptionFilter } from '@app/common/filters/http-exception.filter';
+import { RepoModule } from 'libs/repositories/repo.module';
 
 @Module({
-  imports: [HttpModule], //TypeOrmModule.forRoot(configService.getTypeOrmConfig())
+  imports: [RepoModule, HttpModule], //TypeOrmModule.forRoot(configService.getTypeOrmConfig())
   controllers: [AuthenticatorController],
   providers: [
     AuthenticatorService,

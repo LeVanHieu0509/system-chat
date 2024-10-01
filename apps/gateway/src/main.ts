@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import rateLimit from 'express-rate-limit';
 import { urlencoded, json } from 'express';
 import { AppModule } from './app.module';
+import { GatewayExceptionFilter } from './filter';
 
 // const logger = new Logger('Bitback-Main');
 
@@ -21,7 +22,7 @@ async function bootstrap() {
   if (!Number.isNaN(ttl))
     app.use(rateLimit({ windowMs: ttl * 1000 || 1000, max: max || 20 }));
 
-  // app.useGlobalFilters(new GatewayExceptionFilter());
+  app.useGlobalFilters(new GatewayExceptionFilter());
   // app.useGlobalFilters(new BadRequestExceptionFilter());
   // app.useGlobalInterceptors(new TransformResponseInterceptor());
   // app.useGlobalInterceptors(new VersionInterceptor());

@@ -14,9 +14,8 @@ import { AuthService } from './auth.service';
 import { Public } from '@app/common/decorators';
 import { MainValidationPipe } from '@app/common/pipes';
 import { OTPRequestDto, OTPTypeRequestDto } from 'libs/dto/src';
-import { MESSAGE_PATTERN, OTP_TYPE } from '@app/common/constants';
+import { MESSAGE_PATTERN, OTP_TYPE, QUEUES } from '@app/common/constants';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
-import { QUEUES } from '@app/common';
 import { ClientProxy } from '@nestjs/microservices';
 
 @Controller('auth')

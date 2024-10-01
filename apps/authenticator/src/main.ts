@@ -1,9 +1,9 @@
-import { QUEUES } from '@app/common';
 import { authenticatorQueueOptionsProducer } from '@app/common/providers/queues/authenticator-queue.provider';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { AuthenticatorModule } from './authenticator.module';
+import { QUEUES } from '@app/common/constants';
 
 /*
   Cụ thể, nó triển khai một microservice sử dụng hàng đợi RabbitMQ.

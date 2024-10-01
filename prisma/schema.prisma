@@ -1,0 +1,1253 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// Account Model
+model Account {
+    id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    avatar        String?   @db.VarChar(350)
+    fullName      String?   @map("full_name") @db.VarChar(255)
+    email         String?   @unique @db.VarChar(50)
+    passcode      String?   @db.VarChar(100)
+    emailVerified Boolean?  @default(false) @map("email_verified")
+    phone         String?   @unique @db.VarChar(20)
+    phoneVerified Boolean?  @default(false) @map("phone_verified")
+    status        Int       @default(1) // 0. inactive | 1. active
+    kycStatus     Int       @default(0) @map("kyc_status") // 0. inactive | 1. active
+    createdAt     DateTime  @default(now()) @map("created_at")
+    updatedAt     DateTime? @updatedAt @map("updated_at")
+    referralCode  String?   @unique @map("referral_code") @db.VarChar(8)
+    deviceToken   String?   @map("device_token") @db.VarChar(255)
+    googleId      String?   @map("google_id") @db.VarChar(50)
+    facebookId    String?   @map("facebook_id") @db.VarChar(50)
+    appleId       String?   @map("apple_id") @db.VarChar(50)
+    isPartner     Boolean   @default(false) @map("is_partner")
+    referralLink  String?   @map("referral_link") @db.VarChar(255)
+    type          String    @default("USER") @db.VarChar // USER | BROKER
+    secretKey     String?   @map("secret_key") @db.VarChar(255) // only used for BROKER type
+    histories     Json?
+    kycApprovalAt DateTime? @map("kyc_approval_at")
+    walletAddress String?   @map("wallet_address") @db.VarChar(255)
+    giftAddress   String?   @map("gift_address")
+
+    cbAvailable              CashbackAvailable[]
+    tranSenders              CashbackTransaction[]       @relation("cb_trans_sender")
+    tranReceivers            CashbackTransaction[]       @relation("cb_trans_receiver")
+    campaignJobHis           JobCampaignHistory[]
+    accountContact           AccountContact[]
+    accountReferralBy        AccountReferral[]           @relation("account_referral_by")
+    accountReferralFrom      AccountReferral?            @relation("account_referral_from")
+    accountHistory           AccountHistory[]
+    accountSetting           AccountSetting?
+    notification             Notification[]
+    accountDailyLuckyWheel   AccountDailyLuckyWheel[]
+    accountPartnerCommission AccountPartnerCommission[]
+    partnerTransaction       PartnerTransaction[]
+    accountRewardEvent       AccountRewardEvent[]
+    eggs                     ChickenFarmEgg[]
+    chickens                 ChickenFarmAdult[]
+    marketBuyers             ChickenFarmMarket[]         @relation("market_buyer")
+    marketSellers            ChickenFarmMarket[]         @relation("market_seller")
+    eggsHarvest              ChickenFarmEggHarvest[]
+    chickenFarmTransBuyer    ChickenFarmTransaction[]    @relation("cf_trans_buyer")
+    chickenFarmTransSeller   ChickenFarmTransaction[]    @relation("cf_trans_seller")
+    chickenFarmExtraSlot     ChickenFarmExtraSlot[]
+    currencies               AccountExchangeCurrency[]
+    brokerSenderTrans        CashbackTransactionBroker[] @relation("cb_trans_broker_sender")
+    brokerReceiverTrans      CashbackTransactionBroker[] @relation("cb_trans_broker_receiver")
+    roosters                 ChickenFarmRooster[]
+    referralRankings         ReferralRankingAccount[]
+    acccountReferralStats    AccountReferralStats?
+    interestPaymentAccounts  InterestPaymentAccount[]
+    accountKycIPN            AccountKycIPN?
+    bonusEventAccount        BonusEventAccount[]
+    bonusEvent               BonusEvent[]
+
+    @@map("account")
+}
+
+model AccountKycIPN {
+    merchantAccountId String    @id @map("account_id") @db.Uuid
+    type              String?
+    state             String?
+    connectState      String?   @map("connected_state")
+    fullname          String?   @map("full_name")
+    phone             String?
+    gender            String?
+    histories         Json?
+    createdAt         DateTime  @default(now()) @map("created_at")
+    updatedAt         DateTime? @updatedAt @map("updated_at")
+
+    account Account @relation(fields: [merchantAccountId], references: [id])
+
+    @@map("account_kyc_ipn")
+}
+
+// Account Cashback Available
+model CashbackAvailable {
+    id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    amount     Decimal   @default(0)
+    reason     String?   @db.VarChar(255)
+    status     Int       @default(1) @db.SmallInt
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime? @updatedAt @map("updated_at")
+    currencyId String    @map("currency_id") @db.Uuid
+    accountId  String    @map("account_id") @db.Uuid
+    version    Int       @default(1)
+
+    account   Account                      @relation(fields: [accountId], references: [id])
+    currency  CurrencyMaster               @relation(fields: [currencyId], references: [id])
+    histories CashbackAvailableHistories[]
+
+    @@unique([currencyId, accountId])
+    @@map("cashback_available")
+}
+
+model CashbackAvailableHistories {
+    id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    oldBalance Decimal   @default(0) @map("old_balance")
+    amount     Decimal   @default(0)
+    type       String?   @db.VarChar(1)
+    lastUpdate DateTime? @map("last_update")
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime? @updatedAt @map("updated_at")
+    caId       String    @map("ca_id") @db.Uuid
+
+    cashbackAvailable CashbackAvailable @relation(fields: [caId], references: [id])
+
+    @@index([caId])
+    @@map("cashback_available_histories")
+}
+
+model CashbackTransaction {
+    id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type            Int       @default(1) // 1. incoming on-chain | 2. incoming off-chain | 3. outgoing on-chain | 4.outgoing off-chain | 5. exchange | 6. payment | 7. referral
+    amount          Decimal   @default(0)
+    fee             Int?      @default(0)
+    status          Int       @default(1) @db.SmallInt // 1. processing | 2. success | 3. failure | 4. rejected | 5. approved
+    actionType      Int       @map("action_type")
+    title           String?   @db.VarChar(150)
+    description     String?   @db.VarChar(255)
+    createdAt       DateTime  @default(now()) @map("created_at")
+    updatedAt       DateTime? @updatedAt @map("updated_at")
+    vndcJson        Json?     @map("vndc_json")
+    oldBalance      Decimal   @default(0) @map("old_balance")
+    accessTradeId   String?   @map("access_trade_id") @db.VarChar(50)
+    accessTradeJson Json?     @map("access_trade_json")
+    currencyId      String    @map("currency_id") @db.Uuid
+    campaignId      String?   @map("campaign_id") @db.Uuid
+    senderId        String?   @map("sender_id") @db.Uuid
+    receiverId      String?   @map("receiver_id") @db.Uuid
+    cbHistories     Json?
+
+    campaign                 Campaign?                 @relation(fields: [campaignId], references: [id])
+    currency                 CurrencyMaster            @relation(fields: [currencyId], references: [id])
+    sender                   Account?                  @relation("cb_trans_sender", fields: [senderId], references: [id])
+    receiver                 Account?                  @relation("cb_trans_receiver", fields: [receiverId], references: [id])
+    daylyReward              AccountDailyLuckyWheel?
+    vndcTransaction          VNDCTransaction?
+    kaiTransaction           KAITransaction?
+    accountPartnerCommission AccountPartnerCommission?
+    accountReferralRanking   ReferralRankingAccount?
+    interestPaymentAccount   InterestPaymentAccount?
+    bonusEventAccount        BonusEventAccount?
+
+    @@index([currencyId])
+    @@index([receiverId])
+    @@index([senderId])
+    @@map("cashback_transaction")
+}
+
+model VNDCTransaction {
+    id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    status                Int       @default(1) @db.SmallInt // 1. processing | 2. success | 3. failure
+    vndcTransactionNumber String?   @unique @map("vndc_transaction_number")
+    vndcFullname          String?   @map("vndc_fullname")
+    vndcUsername          String?   @map("vndc_username")
+    walletAddress         String    @map("wallet_address")
+    vndcJson              Json?     @map("vndc_json")
+    cashbackTransactionId String    @unique @map("cashback_transaction_id") @db.Uuid
+    createdAt             DateTime  @default(now()) @map("created_at")
+    updatedAt             DateTime? @updatedAt @map("updated_at")
+
+    cbTransaction CashbackTransaction @relation(fields: [cashbackTransactionId], references: [id])
+
+    @@map("vndc_transaction")
+}
+
+model KAITransaction {
+    id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    status                Int       @default(1) @db.SmallInt // 1. processing | 2. success | 3. failure
+    txHash                String    @unique @map("tx_hash")
+    walletAddress         String    @map("wallet_address")
+    kaiJson               Json?     @map("kai_json")
+    cashbackTransactionId String    @unique @map("cashback_transaction_id") @db.Uuid
+    createdAt             DateTime  @default(now()) @map("created_at")
+    updatedAt             DateTime? @updatedAt @map("updated_at")
+
+    cbTransaction CashbackTransaction @relation(fields: [cashbackTransactionId], references: [id])
+
+    @@map("kai_transaction")
+}
+
+model CashbackTransactionBroker {
+    id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type              Int       @default(0)
+    amount            Decimal   @default(0)
+    fee               Int?      @default(0)
+    status            Int       @default(1) @db.SmallInt // 1. processing | 2. success | 3. failure | 4. rejected | 5. approved
+    actionType        Int       @map("action_type")
+    title             String?   @db.VarChar(150)
+    description       String?   @db.VarChar(255)
+    createdAt         DateTime  @default(now()) @map("created_at")
+    updatedAt         DateTime? @updatedAt @map("updated_at")
+    oldBalance        Decimal   @default(0) @map("old_balance")
+    vndcUserId        String?   @map("vndc_user_id")
+    transactionNumber String?   @map("transaction_number")
+    currencyId        String    @map("currency_id") @db.Uuid
+    senderId          String?   @map("sender_id") @db.Uuid
+    receiverId        String?   @map("receiver_id") @db.Uuid
+    histories         Json?
+
+    currency CurrencyMaster @relation(fields: [currencyId], references: [id])
+    sender   Account?       @relation("cb_trans_broker_sender", fields: [senderId], references: [id])
+    receiver Account?       @relation("cb_trans_broker_receiver", fields: [receiverId], references: [id])
+
+    @@index([currencyId])
+    @@index([receiverId])
+    @@index([senderId])
+    @@map("cashback_transaction_broker")
+}
+
+// Currency Master
+model CurrencyMaster {
+    id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    code                   String    @unique @map("code") @db.VarChar(10)
+    name                   String    @map("name") @db.VarChar(50)
+    status                 Int       @default(1) @db.SmallInt // 0. inactive | 1. active
+    createdAt              DateTime  @default(now()) @map("created_at")
+    updatedAt              DateTime? @updatedAt @map("updated_at")
+    exchangeWalletEditable Boolean   @default(false) @map("exchange_wallet_editable")
+    isCalculateDecimals    Boolean   @default(false) @map("is_calculate_decimals")
+    visible                Boolean   @default(true)
+    fixedDecimal           String?   @map("fixed_decimal") @db.VarChar(10)
+    withdrawable           Boolean   @default(false)
+    exchangeable           Boolean   @default(false)
+    icon                   String?   @default("")
+
+    cbAvailable               CashbackAvailable[]
+    cbTrans                   CashbackTransaction[]
+    configDailyLuckyWheel     ConfigDailyLuckyWheel[]
+    configPaymentLuckyWheel   ConfigPaymentLuckyWheel[]
+    configEvent               ConfigEvent[]
+    chickenFarmMarket         ChickenFarmMarket[]
+    chickenFarmEggEvent       ChickenFarmEggEvent[]
+    chickenFarmTransaction    ChickenFarmTransaction[]
+    accountCurrencies         AccountExchangeCurrency[]
+    cbBrokerTrans             CashbackTransactionBroker[]
+    cfrFromWallet             ConfigInterestRate[]        @relation("cfr_from_wallet")
+    cfrWalletReceive          ConfigInterestRate[]        @relation("cfr_wallet_receive")
+    ipFromWallet              InterestPayment[]           @relation("ip_from_wallet")
+    ipToWallet                InterestPayment[]           @relation("ip_to_wallet")
+    referralRankings          ReferralRanking[]
+    partnerTransactions       PartnerTransaction[]
+    goldenEggExchangeSettings GoldenEggExchangeSetting[]
+    currencyLimitSettings     CurrencyLimitSetting[]
+    BonusEvent                BonusEvent[]
+
+    @@map("currency_master")
+}
+
+// CMS User
+model User {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    userName  String    @unique @map("user_name") @db.VarChar(50)
+    password  String    @db.VarChar(100)
+    fullName  String    @map("full_name") @db.VarChar(100)
+    email     String?   @unique @db.VarChar(50)
+    phone     String?   @db.VarChar(20)
+    avatar    String?   @db.VarChar(150)
+    role      Int?      @db.SmallInt
+    status    Int?      @default(1) @db.SmallInt // 0. inactive | 1. active
+    createdBy String?   @map("created_by") @db.Uuid
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    deletedAt DateTime? @map("deleted_at")
+
+    accountHistory              AccountHistory[]
+    config                      Config[]
+    configDailyLuckyWheel       ConfigDailyLuckyWheel[]
+    configPaymentLuckyWheel     ConfigPaymentLuckyWheel[]
+    configEvent                 ConfigEvent[]
+    ConfigAds                   ConfigAds[]
+    chickenFarmEggEvent         ChickenFarmEggEvent[]
+    eventCreator                Event[]                     @relation("event_creator")
+    eventUpdater                Event[]                     @relation("event_updater")
+    configInterestRate          ConfigInterestRate[]
+    configInterestRateHistories ConfigInterestRateHistory[]
+    bonusEventCreator           BonusEvent[]                @relation("bonus_event_creator")
+    bonusEventUpdater           BonusEvent[]                @relation("bonus_event_updater")
+    poolConfig                  PoolConfig[]
+    poolValue                   PoolValue[]
+
+    @@map("user")
+}
+
+// CMS Campaign
+model Campaign {
+    id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title           String    @db.VarChar(255)
+    openLink        String?   @map("open_link") @db.VarChar(255)
+    banner          String?   @db.VarChar(255)
+    logo            String?   @db.VarChar(255)
+    slogan          String?   @db.VarChar(255)
+    description     String?   @db.VarChar(500)
+    countTrans      Int?      @default(0) @map("count_trans") //count transaction approved
+    contactEmail    String?   @map("contact_email") @db.VarChar(50)
+    contactPhone    String?   @map("contact_phone") @db.VarChar(20)
+    createdAt       DateTime  @default(now()) @map("created_at")
+    updatedAt       DateTime? @updatedAt @map("updated_at")
+    deletedAt       DateTime? @map("deleted_at")
+    totalCommission Int?      @default(0) @map("total_commission")
+    position        Int?      @default(0) @db.SmallInt
+    categoryId      String?   @map("category_id") @db.Uuid
+
+    categoryMaster     CategoryMaster?       @relation(fields: [categoryId], references: [id])
+    campaignCategories CampaignCategory[]
+    jobCampaignHis     JobCampaignHistory[]
+    campaignTrans      CashbackTransaction[]
+
+    @@map("campaign")
+}
+
+// CMS Campaign Category
+model CampaignCategory {
+    id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name         String?   @db.VarChar(255)
+    cashbackRate Float?    @default(0) @map("cashback_rate")
+    categoryId   String?   @map("category_id") @db.VarChar(50)
+    fromSource   String?   @map("from_source") @db.VarChar(300) // url source
+    createdAt    DateTime  @default(now()) @map("created_at")
+    updatedAt    DateTime? @updatedAt @map("updated_at")
+    deletedAt    DateTime? @map("deleted_at")
+    campaignId   String    @map("campaign_id") @db.Uuid
+
+    campaign Campaign @relation(fields: [campaignId], references: [id])
+
+    @@map("campaign_category")
+}
+
+// CMS Category
+model CategoryMaster {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    icon        String?   @db.VarChar(150)
+    name        String?   @db.VarChar(100)
+    description String?   @db.VarChar(255)
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime? @updatedAt @map("updated_at")
+    deletedAt   DateTime? @map("deleted_at")
+
+    campaigns Campaign[]
+
+    @@map("category_master")
+}
+
+// CMS campaign job history
+model JobCampaignHistory {
+    id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    message    String?  @db.VarChar(255)
+    createdAt  DateTime @default(now()) @map("created_at")
+    accountId  String?  @map("account_id") @db.Uuid
+    campaignId String?  @map("campaign_id") @db.Uuid
+
+    account  Account?  @relation(fields: [accountId], references: [id])
+    campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+    @@map("job_campaign_history")
+}
+
+// Model account referral
+model AccountReferral {
+    referralFrom String   @unique @map("referral_from") @db.Uuid
+    referralBy   String   @map("referral_by") @db.Uuid
+    createdAt    DateTime @default(now()) @map("created_at")
+
+    referralFromInfo Account? @relation("account_referral_from", fields: [referralFrom], references: [id])
+    referralByInfo   Account? @relation("account_referral_by", fields: [referralBy], references: [id])
+
+    @@id([referralFrom, referralBy])
+    @@map("account_referral")
+}
+
+model AccountReferralStats {
+    accountId      String    @unique @map("account_id") @db.Uuid
+    totalReferrals Int       @default(0) @map("total_referrals")
+    totalKyc       Int       @default(0) @map("total_kyc")
+    createdAt      DateTime  @default(now()) @map("created_at")
+    updatedAt      DateTime? @updatedAt @map("updated_at")
+
+    account Account @relation(fields: [accountId], references: [id])
+
+    @@id([accountId])
+    @@map("account_referral_stats")
+}
+
+// Model account contact
+model AccountContact {
+    contactId   String    @default(dbgenerated("gen_random_uuid()")) @map("contact_id") @db.Uuid
+    displayName String?   @map("display_name") @db.VarChar(255)
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime? @updatedAt @map("updated_at")
+    deletedAt   DateTime? @map("deleted_at")
+    accountId   String    @map("account_id") @db.Uuid
+
+    accountInfo Account @relation(fields: [contactId], references: [id])
+
+    @@id([accountId, contactId])
+    @@map("account_contact")
+}
+
+// Model account history
+model AccountHistory {
+    id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    reason    String?  @db.VarChar(255)
+    json      Json?
+    createdAt DateTime @default(now()) @map("created_at")
+    accountId String   @map("account_id") @db.Uuid
+    createdId String   @map("created_by") @db.Uuid
+
+    account   Account @relation(fields: [accountId], references: [id])
+    createdBy User    @relation(fields: [createdId], references: [id])
+
+    @@map("account_history")
+}
+
+// Model account setting
+model AccountSetting {
+    id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    receiveNotify Boolean  @default(true) @map("receive_notify")
+    language      Language @default(VI)
+    accountId     String   @unique @map("account_id") @db.Uuid
+    createdAt     DateTime @default(now()) @map("created_at")
+
+    account Account @relation(fields: [accountId], references: [id])
+
+    @@map("account_setting")
+}
+
+model AccountExchangeCurrency {
+    accountId     String    @map("account_id") @db.Uuid
+    currencyId    String    @map("currency_id") @db.Uuid
+    walletAddress String    @map("wallet_address")
+    createdAt     DateTime  @default(now()) @map("created_at")
+    updatedAt     DateTime? @updatedAt @map("updated_at")
+
+    account  Account        @relation(fields: [accountId], references: [id])
+    currency CurrencyMaster @relation(fields: [currencyId], references: [id])
+
+    @@id([accountId, currencyId])
+    @@map("account_exchange_currency")
+}
+
+// Model config cms
+model Config {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type        Int       @db.SmallInt // 1.cashback on-chain | 2.cashback off-chain | 3.reward referral from | 4.reward referral by | 5.reward transaction
+    value       Float     @default(0)
+    unit        Int       @default(0) @db.SmallInt // 0.none | 1.%
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime? @updatedAt @map("updated_at")
+    displayName String?   @map("display_name") @db.VarChar(255)
+    userId      String    @map("user_id") @db.Uuid
+
+    user User @relation(fields: [userId], references: [id])
+
+    @@map("config")
+}
+
+// Model notification
+model Notification {
+    id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type        Int      @db.SmallInt // 1.cashback on-chain | 2.cashback off-chain | 3.payment | 4.referral from | 5.referral by | 6.KYC
+    icon        String?  @db.VarChar(255)
+    seen        Boolean  @default(false)
+    title       String   @db.VarChar(255)
+    description String   @db.VarChar(500)
+    createdAt   DateTime @default(now()) @map("created_at")
+    htmlContent String?  @map("html_content")
+    ref         String?  @map("ref") @db.Uuid
+    accountId   String   @map("account_id") @db.Uuid
+
+    account Account @relation(fields: [accountId], references: [id])
+
+    @@map("notification")
+}
+
+// Model account summary
+model AccountSummary {
+    value     Int       @default(0)
+    day       Int       @db.SmallInt
+    week      Int       @db.SmallInt
+    month     Int       @db.SmallInt
+    year      Int
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@unique([day, month, year])
+    @@map("account_summary")
+}
+
+// Model casback summary
+model CashbackSummary {
+    value     Int       @default(0)
+    amount    Decimal   @default(0)
+    status    Int
+    day       Int       @db.SmallInt
+    week      Int       @db.SmallInt
+    month     Int       @db.SmallInt
+    year      Int
+    type      Int       @default(0)
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@unique([day, month, year, status, type])
+    @@map("cashback_summary")
+}
+
+model ConfigCommission {
+    id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    referralFrom Int       @default(0) @map("referral_from")
+    referralBy   Int       @default(0) @map("referral_by")
+    nonReferral  Int       @default(0) @map("non_referral")
+    needKyc      Boolean   @default(true) @map("need_kyc")
+    createdAt    DateTime  @default(now()) @map("created_at")
+    updatedAt    DateTime? @updatedAt @map("updated_at")
+
+    @@map("config_commission")
+}
+
+model Banner {
+    id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    urlContent String    @map("url_content") @db.VarChar(255)
+    link       String?
+    position   Int       @default(1) @db.SmallInt
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime? @updatedAt @map("updated_at")
+
+    @@map("banner")
+}
+
+model ConfigDailyLuckyWheel {
+    id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title      String    @db.VarChar(150)
+    rate       Float     @default(0)
+    type       Int       @default(1) @db.SmallInt // 1.satoshi | 2.payment | 3.one-turn | 4.none
+    reward     Int       @default(0)
+    approval   Boolean   @default(false)
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime? @updatedAt @map("updated_at")
+    updatedId  String?   @map("updated_id") @db.Uuid
+    currencyId String?   @map("currency_id") @db.Uuid
+
+    currency  CurrencyMaster? @relation(fields: [currencyId], references: [id])
+    updatedBy User?           @relation(fields: [updatedId], references: [id])
+
+    @@map("config_daily_lucky_wheel")
+}
+
+model ConfigPaymentLuckyWheel {
+    id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title      String    @db.VarChar(150)
+    rate       Float     @default(0)
+    type       Int       @default(1) @db.SmallInt // 1.double-cashback | 2.double-balance | 3.payment | 4.cashback-payment
+    reward     Int       @default(0)
+    approval   Boolean   @default(false)
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime? @updatedAt @map("updated_at")
+    updatedId  String?   @map("updated_id") @db.Uuid
+    currencyId String?   @map("currency_id") @db.Uuid
+
+    updatedBy User?           @relation(fields: [updatedId], references: [id])
+    currency  CurrencyMaster? @relation(fields: [currencyId], references: [id])
+
+    @@map("config_payment_lucky_wheel")
+}
+
+model AccountDailyLuckyWheel {
+    id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    status              Int       @default(1) @db.SmallInt // 1.new | 2.used | 3.expired
+    note                String?   @db.VarChar(100)
+    createdAt           DateTime  @default(now()) @map("created_at")
+    updatedAt           DateTime? @updatedAt @map("updated_at")
+    rewardStatus        Int       @default(1) @map("reward_status") @db.SmallInt // 1.new | 2.used | 3.expired
+    reward              Int       @default(0)
+    type                Int?      @db.SmallInt // 1.satoshi | 2.payment | 3.none
+    isApproved          Boolean?  @default(true) @map("is_approved")
+    rewardAt            DateTime? @map("reward_at")
+    rewardTitle         String?   @map("reward_title") @db.VarChar(150)
+    accountId           String    @map("account_id") @db.Uuid
+    transactionId       String?   @unique @map("transaction_id") @db.Uuid
+    luckyWheelHistories Json?
+
+    account     Account                         @relation(fields: [accountId], references: [id])
+    transaction CashbackTransaction?            @relation(fields: [transactionId], references: [id])
+    histories   AccountDailyLuckyWheelHistory[]
+
+    @@index([accountId])
+    @@map("account_daily_lucky_wheel")
+}
+
+model AccountDailyLuckyWheelHistory {
+    id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    note          String   @db.VarChar(255)
+    createdAt     DateTime @default(now()) @map("created_at")
+    daylyRewardId String   @map("daily_reward_id") @db.Uuid
+
+    dailyReward AccountDailyLuckyWheel @relation(fields: [daylyRewardId], references: [id])
+
+    @@map("account_daily_lucky_wheel_history")
+}
+
+model AccountPartnerCommission {
+    id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    commission    Int     @default(0)
+    totalValue    Int     @default(0) @map("total_value")
+    isApproved    Boolean @default(false) @map("is_approved")
+    paid          Int     @default(0)
+    accountId     String  @map("account_id") @db.Uuid
+    transactionId String  @unique @map("transaction_id") @db.Uuid
+
+    account     Account             @relation(fields: [accountId], references: [id])
+    transaction CashbackTransaction @relation(fields: [transactionId], references: [id])
+
+    @@index([accountId])
+    @@map("account_partner_commission")
+}
+
+model PartnerTransaction {
+    orderId        String          @id @default(dbgenerated("gen_random_uuid()")) @map("order_id") @db.Uuid
+    transactionId  String?         @unique @map("transaction_id") @db.VarChar(32)
+    amount         Decimal         @default(0)
+    amountExchange Decimal         @default(0) @map("amount_exchange")
+    exchangeRate   Float           @default(0) @map("exchange_rate")
+    status         Int             @default(1) @db.SmallInt // 1. processing | 2. success | 3. failure | 4. rejected | 5. approved
+    vndcReceiver   String?         @map("vndc_receiver") @db.VarChar(50)
+    partnerType    Int             @default(1) @map("partner_type") @db.SmallInt // 1.VNDC | 2.InterLoan | 3.GotIt | 4.FamCentral
+    title          String?         @db.VarChar(150)
+    description    String?         @db.VarChar(255)
+    methodType     Int             @default(1) @map("method_type") @db.SmallInt // 1. payme | 2. credit | 3. ATM
+    type           Int             @default(1) @db.SmallInt // 1. incoming  | 2. outgoing
+    storeId        String?         @map("store_id") @db.VarChar(50)
+    paymeId        String?         @map("payme_id") @db.VarChar(20)
+    createdAt      DateTime        @default(now()) @map("created_at")
+    updatedAt      DateTime?       @updatedAt @map("updated_at")
+    histories      Json?
+    currencyId     String?         @map("currency_id") @db.Uuid
+    currency       CurrencyMaster? @relation(fields: [currencyId], references: [id])
+    accountId      String          @map("account_id") @db.Uuid
+    account        Account         @relation(fields: [accountId], references: [id])
+
+    @@map("partner_transaction")
+}
+
+model ConfigEvent {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title       String    @db.VarChar(150)
+    reward      Int       @default(0)
+    time        Int       @default(0) // minute
+    totalAmount Decimal   @default(0) @map("total_amount")
+    totalPaid   Decimal   @default(0) @map("total_paid")
+    status      String    @default("NEW") @db.VarChar(10) // 1.new | 2.running | 3.fisnish
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime? @updatedAt @map("updated_at")
+    createdId   String?   @map("created_id") @db.Uuid
+    currencyId  String?   @map("currency_id") @db.Uuid
+
+    createdBy          User?                @relation(fields: [createdId], references: [id])
+    currency           CurrencyMaster?      @relation(fields: [currencyId], references: [id])
+    accountRewardEvent AccountRewardEvent[]
+
+    @@map("config_event")
+}
+
+model ConfigAds {
+    id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title        String?   @db.VarChar(150)
+    url          String    @db.VarChar(300)
+    startAt      DateTime  @default(now()) @map("start_at")
+    stopAt       DateTime? @map("stop_at")
+    externalLink String?   @map("external_link") @db.VarChar(255)
+    buttonTitle  String?   @map("button_title") @db.VarChar(50)
+    status       Int       @default(0) @db.SmallInt // 0. hide | 1. show
+    createdAt    DateTime  @default(now()) @map("created_at")
+    updatedAt    DateTime? @updatedAt @map("updated_at")
+    createdId    String?   @map("created_id") @db.Uuid
+
+    createdBy User? @relation(fields: [createdId], references: [id])
+
+    @@map("config_ads")
+}
+
+model AccountRewardEvent {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    status    Int       @default(1) @db.SmallInt // 1.pending | 2.success | 3.rejected
+    timeStart BigInt    @default(0) @map("time_start")
+    timeEnd   BigInt    @default(0) @map("time_end")
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    accountId String?   @map("account_id") @db.Uuid
+    eventId   String?   @map("event_id") @db.Uuid
+
+    account Account?     @relation(fields: [accountId], references: [id])
+    event   ConfigEvent? @relation(fields: [eventId], references: [id])
+
+    @@index([accountId])
+    @@index([eventId])
+    @@map("account_reward_event")
+}
+
+model ChickenFarmExtraSlot {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    quantity  Int       @default(1) @db.SmallInt
+    amount    Decimal   @default(0)
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    ownerId   String    @map("owner_id") @db.Uuid
+    owner     Account   @relation(fields: [ownerId], references: [id])
+
+    @@map("chicken_farm_extra_slot")
+}
+
+model ChickenFarmEgg {
+    id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    status     Int       @default(1) @db.SmallInt // 1. hatching | 2. expired
+    type       Int       @default(1) @db.SmallInt // 1.hen | 2.rooster
+    timeStart  BigInt    @default(0) @map("time_start")
+    timeEnd    BigInt    @default(0) @map("time_end")
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime? @updatedAt @map("updated_at")
+    histories  Json?
+    ownerId    String    @map("owner_id") @db.Uuid
+    eggEventId String?   @map("egg_event_id") @db.Uuid
+    breedId    String?   @map("breed_id") @db.Uuid
+
+    owner    Account              @relation(fields: [ownerId], references: [id])
+    chicken  ChickenFarmAdult?
+    eggEvent ChickenFarmEggEvent? @relation(fields: [eggEventId], references: [id])
+    breed    ChickenFarmBreed?    @relation(fields: [breedId], references: [id])
+    roosters ChickenFarmRooster?
+    markets  ChickenFarmMarket[]
+
+    @@index([ownerId])
+    @@index([eggEventId])
+    @@index([breedId])
+    @@map("chicken_farm_egg")
+}
+
+model ChickenFarmAdult {
+    id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    chickenNo        Int       @unique @map("chicken_no")
+    type             Int       @default(1) @db.SmallInt
+    level            Int       @default(1) @db.SmallInt
+    status           Int       @default(1) @db.SmallInt // 1. spawning | 2. expired
+    timeStart        BigInt    @default(0) @map("time_start")
+    timeEnd          BigInt    @default(0) @map("time_end")
+    lastHarvest      BigInt    @default(0) @map("last_harvest")
+    createdAt        DateTime  @default(now()) @map("created_at")
+    updatedAt        DateTime? @updatedAt @map("updated_at")
+    totalEggSold     Int       @default(0) @map("total_egg_sold")
+    histories        Json?
+    eggClaimedLevel1 Int       @default(0) @map("egg_claimed_level_1")
+    eggClaimedLevel2 Int       @default(0) @map("egg_claimed_level_2")
+    eggClaimedLevel3 Int       @default(0) @map("egg_claimed_level_3")
+    eggClaimedLevel4 Int       @default(0) @map("egg_claimed_level_4")
+    eggClaimedLevel5 Int       @default(0) @map("egg_claimed_level_5")
+    eggId            String    @unique @map("egg_id") @db.Uuid
+    ownerId          String?   @map("owner_id") @db.Uuid
+
+    egg         ChickenFarmEgg          @relation(fields: [eggId], references: [id])
+    owner       Account?                @relation(fields: [ownerId], references: [id])
+    markets     ChickenFarmMarket[]
+    eggsHarvest ChickenFarmEggHarvest[]
+    breed       ChickenFarmBreed?
+
+    @@index([ownerId])
+    @@map("chicken_farm_adult")
+}
+
+model ChickenFarmRooster {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    chickenNo Int       @unique @map("chicken_no")
+    type      Int       @default(1) @db.SmallInt
+    status    Int       @default(1) @db.SmallInt // 1. living | 2. expired
+    timeStart BigInt    @default(0) @map("time_start")
+    timeEnd   BigInt    @default(0) @map("time_end")
+    lastBred  BigInt    @default(0) @map("last_bred")
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    histories Json?
+    eggId     String    @unique @map("egg_id") @db.Uuid
+    ownerId   String?   @map("owner_id") @db.Uuid
+
+    egg     ChickenFarmEgg      @relation(fields: [eggId], references: [id])
+    owner   Account?            @relation(fields: [ownerId], references: [id])
+    markets ChickenFarmMarket[]
+    breed   ChickenFarmBreed[]
+
+    @@index([ownerId])
+    @@map("chicken_farm_rooster")
+}
+
+model ChickenFarmEggEvent {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title       String    @db.VarChar(255)
+    price       Int       @default(0) // satoshi
+    status      Int       @default(1) @db.SmallInt // 1.pending | 2.running | 3.finish
+    type        Int       @default(1) @db.SmallInt // 1.hen | 2.rooster
+    totalEgg    Int       @default(0) @map("total_egg")
+    totalSold   Int       @default(0) @map("total_sold")
+    numberOrder Int       @default(0) @map("number_order")
+    limitPerBuy Int       @default(1) @map("limit_per_buy")
+    timeStart   BigInt    @default(0) @map("time_start")
+    timeEnd     BigInt    @default(0) @map("time_end")
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime? @updatedAt @map("updated_at")
+    history     Json?
+    currencyId  String?   @map("currency_id") @db.Uuid
+    createdId   String?   @map("created_id") @db.Uuid
+
+    currency  CurrencyMaster?  @relation(fields: [currencyId], references: [id])
+    createdBy User?            @relation(fields: [createdId], references: [id])
+    eggs      ChickenFarmEgg[]
+
+    @@map("chicken_farm_egg_event")
+}
+
+model ChickenFarmMarket {
+    id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    price      Int       @default(0) // satoshi
+    status     Int       @default(1) // 1. pending | 2. success
+    feeType    Int       @default(1) @map("fee_type") @db.SmallInt // 1. percent | 2. fixed
+    feePercent Float     @default(0) @map("fee_percent")
+    feeTotal   Int       @default(0) @map("fee_total")
+    createdAt  DateTime  @default(now()) @map("created_at")
+    updatedAt  DateTime? @updatedAt @map("updated_at")
+    finishedAt DateTime? @map("finished_at")
+
+    eggId      String? @map("egg_id") @db.Uuid
+    chickenId  String? @map("chicken_id") @db.Uuid
+    buyerId    String? @map("buyer_id") @db.Uuid
+    sellerId   String  @map("seller_id") @db.Uuid
+    currencyId String? @map("currency_id") @db.Uuid
+    roosterId  String? @map("rooster_id") @db.Uuid
+
+    egg                    ChickenFarmEgg?         @relation(fields: [eggId], references: [id])
+    chicken                ChickenFarmAdult?       @relation(fields: [chickenId], references: [id])
+    buyer                  Account?                @relation("market_buyer", fields: [buyerId], references: [id])
+    seller                 Account                 @relation("market_seller", fields: [sellerId], references: [id])
+    currency               CurrencyMaster?         @relation(fields: [currencyId], references: [id])
+    rooster                ChickenFarmRooster?     @relation(fields: [roosterId], references: [id])
+    chickenFarmTransaction ChickenFarmTransaction?
+
+    @@index([eggId])
+    @@index([chickenId])
+    @@index([buyerId])
+    @@index([sellerId])
+    @@index([roosterId])
+    @@map("chicken_farm_market")
+}
+
+model ChickenFarmEggHarvest {
+    level           Int       @default(1) @db.SmallInt
+    total           Int       @default(0)
+    timeLastHarvest BigInt    @default(0) @map("time_last_harvest")
+    createdAt       DateTime  @default(now()) @map("created_at")
+    updatedAt       DateTime? @updatedAt @map("updated_at")
+    date            String    @db.VarChar(10)
+    chickenId       String    @map("chicken_id") @db.Uuid
+    ownerId         String    @map("owner_id") @db.Uuid
+
+    chicken ChickenFarmAdult @relation(fields: [chickenId], references: [id])
+    owner   Account          @relation(fields: [ownerId], references: [id])
+
+    @@id([date, chickenId, ownerId, level])
+    @@map("chicken_farm_egg_harvest")
+}
+
+model ChickenFarmTransaction {
+    id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    amount            Decimal   @default(0)
+    quantity          Int       @default(1)
+    status            Int       @default(1) @db.SmallInt // 1. processing | 2. success | 3. rejected
+    type              Int       @default(1) @db.SmallInt // 1. golden egg | 2. egg | 3. chicken
+    sellerDescription String?   @map("seller_description") @db.VarChar(255)
+    buyerDescription  String?   @map("buyer_description") @db.VarChar(255)
+    createdAt         DateTime  @default(now()) @map("created_at")
+    updatedAt         DateTime? @updatedAt @map("updated_at")
+    finishedAt        DateTime? @map("finished_at")
+    marketId          String?   @unique @map("market_id") @db.Uuid
+    currencyId        String?   @map("currency_id") @db.Uuid
+    buyerId           String?   @map("buyer_id") @db.Uuid
+    sellerId          String?   @map("seller_id") @db.Uuid
+
+    currency CurrencyMaster?    @relation(fields: [currencyId], references: [id])
+    seller   Account?           @relation("cf_trans_seller", fields: [sellerId], references: [id])
+    buyer    Account?           @relation("cf_trans_buyer", fields: [buyerId], references: [id])
+    market   ChickenFarmMarket? @relation(fields: [marketId], references: [id])
+
+    histories Json?
+
+    @@index([currencyId])
+    @@index([marketId])
+    @@index([buyerId])
+    @@index([sellerId])
+    @@map("chicken_farm_transaction")
+}
+
+model ChickenFarmEvent {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title       String?
+    banner      String
+    status      Int       @default(0) @db.SmallInt // 0. hide | 1. show
+    buttonTitle String?   @map("button_title")
+    link        String?
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime? @updatedAt @map("updated_at")
+    deletedAt   DateTime? @map("deleted_at")
+
+    @@map("chicken_farm_event")
+}
+
+model ChickenFarmBreed {
+    id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    henId        String    @unique @map("hen_id") @db.Uuid
+    roosterId    String    @map("rooster_id") @db.Uuid
+    finishedTime BigInt    @map("finished_time")
+    isCompleted  Boolean   @default(false) @map("is_completed")
+    createdAt    DateTime  @default(now()) @map("created_at")
+    updatedAt    DateTime? @updatedAt @map("updated_at")
+
+    hen     ChickenFarmAdult   @relation(fields: [henId], references: [id])
+    rooster ChickenFarmRooster @relation(fields: [roosterId], references: [id])
+    eggs    ChickenFarmEgg[]
+
+    @@unique([henId, roosterId])
+    @@map("chicken_farm_breed")
+}
+
+model Event {
+    id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type        Int       @default(1) @db.SmallInt // 1. Invite-Friend
+    name        String    @db.VarChar(255)
+    status      Int       @default(1) @db.SmallInt // 1.active | 2.inactive
+    timeStart   BigInt    @default(0) @map("time_start")
+    timeEnd     BigInt    @default(0) @map("time_end")
+    information String?
+    history     Json?
+    createdAt   DateTime  @default(now()) @map("created_at")
+    updatedAt   DateTime? @updatedAt @map("updated_at")
+    createdId   String    @map("created_id") @db.Uuid
+    updatedId   String?   @map("updated_id") @db.Uuid
+
+    createdBy User  @relation("event_creator", fields: [createdId], references: [id])
+    updatedBy User? @relation("event_updater", fields: [updatedId], references: [id])
+
+    @@map("event")
+}
+
+model ConfigInterestRate {
+    id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title           String    @db.VarChar(150)
+    description     String    @db.VarChar(500)
+    rate            Float     @default(0)
+    createdAt       DateTime  @default(now()) @map("created_at")
+    updatedAt       DateTime? @updatedAt @map("updated_at")
+    fromWalletId    String    @map("from_wallet_id") @db.Uuid
+    walletReceiveId String    @map("wallet_receive_id") @db.Uuid
+    updatedId       String?   @map("updated_id") @db.Uuid
+
+    fromWallet    CurrencyMaster              @relation("cfr_from_wallet", fields: [fromWalletId], references: [id])
+    walletReceive CurrencyMaster              @relation("cfr_wallet_receive", fields: [walletReceiveId], references: [id])
+    updatedBy     User?                       @relation(fields: [updatedId], references: [id])
+    histories     ConfigInterestRateHistory[]
+
+    @@map("config_interest_rate")
+}
+
+model ConfigInterestRateHistory {
+    id            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    changedConfig Json   @map("changed_config")
+
+    configInterestRateId String             @map("config_interest_rate_id") @db.Uuid
+    configInterestRate   ConfigInterestRate @relation(fields: [configInterestRateId], references: [id])
+    updatedById          String             @map("updated_by_id") @db.Uuid
+    updatedBy            User?              @relation(fields: [updatedById], references: [id])
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@map("config_interest_rate_history")
+}
+
+model InterestPayment {
+    id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    dateTime              DateTime @default(now()) @map("date_time")
+    interestRate          Float    @map("interest_rate")
+    exchangeRate          Float    @map("exchange_rate")
+    totalAccounts         Int      @default(0) @map("total_accounts")
+    totalInterestAmount   Decimal  @default(0) @map("total_interest_amount")
+    highestInterestAmount Decimal  @default(0) @map("highest_interest_amount")
+    lowestInterestAmount  Decimal  @default(0) @map("lowest_interest_amount")
+    averageInterestAmount Decimal  @default(0) @map("average_interest_amount")
+
+    fromWalletId            String                   @map("from_wallet_id") @db.Uuid
+    fromWallet              CurrencyMaster           @relation("ip_from_wallet", fields: [fromWalletId], references: [id])
+    toWalletId              String                   @map("to_wallet_id") @db.Uuid
+    toWallet                CurrencyMaster           @relation("ip_to_wallet", fields: [toWalletId], references: [id])
+    interestPaymentAccounts InterestPaymentAccount[]
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@index([dateTime, fromWalletId, toWalletId])
+    @@map("interest_payment")
+}
+
+model InterestPaymentAccount {
+    fromWalletAmount   Decimal @map("from_wallet_amount")
+    toWalletAmount     Decimal @map("to_wallet_amount")
+    fromInterestAmount Decimal @map("from_interest_amount")
+    toInterestAmount   Decimal @map("to_interest_amount")
+
+    interestPaymentId     String               @map("interest_payment_id") @db.Uuid
+    interestPayment       InterestPayment      @relation(fields: [interestPaymentId], references: [id])
+    accountId             String               @map("account_id") @db.Uuid
+    account               Account              @relation(fields: [accountId], references: [id])
+    cashbackTransactionId String?              @unique @map("cashback_transaction_id") @db.Uuid
+    cashbackTransaction   CashbackTransaction? @relation(fields: [cashbackTransactionId], references: [id])
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@id([interestPaymentId, accountId])
+    @@index([interestPaymentId, accountId, cashbackTransactionId])
+    @@map("interest_payment_account")
+}
+
+model ReferralRanking {
+    id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    title       String
+    description String?
+    status      Int     @default(1) @db.SmallInt // 1. HAPPENING | 2. LOCKED | 3. AWARDED
+    timeStart   BigInt  @default(0) @map("time_start")
+    timeEnd     BigInt  @default(0) @map("time_end")
+    totalPrize  Decimal @default(0) @map("total_prize")
+    isPublic    Boolean @default(false) @map("is_public")
+    prizeRate   Json?   @map("prize_rate")
+
+    currencyId String                   @map("currency_id") @db.Uuid
+    currency   CurrencyMaster           @relation(fields: [currencyId], references: [id])
+    accounts   ReferralRankingAccount[]
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@map("referral_ranking")
+}
+
+model ReferralRankingAccount {
+    rank          Int
+    referralCount Int       @default(0) @map("referral_count")
+    kycCount      Int       @default(0) @map("kyc_count")
+    prizeAmount   Decimal   @default(0) @map("prize_amount")
+    prizeRate     Float     @map("prize_rate")
+    awardedAt     DateTime? @map("awarded_at")
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    accountId             String               @map("account_id") @db.Uuid
+    account               Account              @relation(fields: [accountId], references: [id])
+    referralRankingId     String               @map("referral_ranking_id") @db.Uuid
+    referralRanking       ReferralRanking      @relation(fields: [referralRankingId], references: [id])
+    cashbackTransactionId String?              @unique @map("cashback_transaction_id") @db.Uuid
+    cashbackTransaction   CashbackTransaction? @relation(fields: [cashbackTransactionId], references: [id])
+
+    @@id([accountId, referralRankingId])
+    @@map("referral_ranking_account")
+}
+
+model GoldenEggExchangeSetting {
+    id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    minNumberOfEggs Float   @map("min_number_of_eggs")
+    price           Float
+    exchangeable    Boolean @default(false)
+
+    currencyId String         @unique @map("currency_id") @db.Uuid
+    currency   CurrencyMaster @relation(fields: [currencyId], references: [id])
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@map("golden_egg_exchange_setting")
+}
+
+model CurrencyLimitSetting {
+    id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    type        Int    @db.SmallInt // 1. withdraw | 2. swap
+    fee         Float  @default(0)
+    min         Float
+    max         Float
+    minHold     Float? @map("min_hold")
+    maxPerDay   Float? @map("max_per_day")
+    maxPerMonth Float? @map("max_per_month")
+
+    currencyId String         @map("currency_id") @db.Uuid
+    currency   CurrencyMaster @relation(fields: [currencyId], references: [id])
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    @@unique([type, currencyId])
+    @@map("currency_limit_setting")
+}
+
+enum Language {
+    VI
+    EN
+}
+
+model BonusEvent {
+    id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    name      String  @db.VarChar(255)
+    status    String  @default("NEW") @db.VarChar(15)
+    timeStart BigInt  @default(0) @map("time_start")
+    timeEnd   BigInt  @default(0) @map("time_end")
+    link      String?
+    prizePool Decimal @default(0) @map("prize_pool")
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    currencyId String         @map("currency_id") @db.Uuid
+    currency   CurrencyMaster @relation(fields: [currencyId], references: [id])
+
+    brokerId String  @default("00000000-0000-0000-0000-000000000000") @map("broker_id") @db.Uuid
+    broker   Account @relation(fields: [brokerId], references: [id])
+
+    createdId String @default("00000000-0000-0000-0000-000000000000") @map("created_id") @db.Uuid
+    createdBy User   @relation("bonus_event_creator", fields: [createdId], references: [id])
+
+    updatedId String? @map("updated_id") @db.Uuid
+    updatedBy User?   @relation("bonus_event_updater", fields: [updatedId], references: [id])
+
+    bonusEventAccount BonusEventAccount[]
+
+    @@map("bonus_event")
+}
+
+model BonusEventAccount {
+    amount  Decimal @default(0)
+    note    String
+    ranking Int
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+
+    accountId             String               @map("account_id") @db.Uuid
+    account               Account              @relation(fields: [accountId], references: [id])
+    bonusEventId          String               @map("bonus_event_id") @db.Uuid
+    bonusEvent            BonusEvent           @relation(fields: [bonusEventId], references: [id])
+    cashbackTransactionId String?              @unique @map("cashback_transaction_id") @db.Uuid
+    cashbackTransaction   CashbackTransaction? @relation(fields: [cashbackTransactionId], references: [id])
+
+    @@id([accountId, bonusEventId])
+    @@map("bonus_event_account")
+}
+
+model PoolConfig {
+    id      String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    revenue Float  @default(30)
+    min     Int    @default(10000)
+    max     Int    @default(100000)
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    updatedId String?   @map("updated_id") @db.Uuid
+
+    updatedBy User? @relation(fields: [updatedId], references: [id])
+
+    @@map("pool_config")
+}
+
+model PoolValue {
+    id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    eggValue Decimal @default(1000000000) @map("egg_value")
+    bbcValue Decimal @default(10000000) @map("bbc_value")
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    updatedId String?   @map("updated_id") @db.Uuid
+
+    updatedBy         User?             @relation(fields: [updatedId], references: [id])
+    poolEggHistories  PoolEggHistory[]
+    poolBBCHistories  PoolBBCHistory[]
+    poolRateHistories PoolRateHistory[]
+
+    @@map("pool_value")
+}
+
+model PoolEggHistory {
+    id   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    in   Decimal @default(0)
+    out  Decimal @default(0)
+    last Decimal @default(0)
+    time String  @default("00:00:00") @db.VarChar(10)
+    date String  @default("01/01/1970") @db.VarChar(10)
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    poolId    String    @map("pool_id") @db.Uuid
+    pool      PoolValue @relation(fields: [poolId], references: [id])
+
+    @@index([poolId])
+    @@index([createdAt])
+    @@map("pool_egg_history")
+}
+
+model PoolBBCHistory {
+    id   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    in   Decimal @default(0)
+    out  Decimal @default(0)
+    last Decimal @default(0)
+    time String  @default("00:00:00") @db.VarChar(10)
+    date String  @default("01/01/1970") @db.VarChar(10)
+
+    createdAt DateTime  @default(now()) @map("created_at")
+    updatedAt DateTime? @updatedAt @map("updated_at")
+    poolId    String    @map("pool_id") @db.Uuid
+    pool      PoolValue @relation(fields: [poolId], references: [id])
+
+    @@index([poolId])
+    @@index([createdAt])
+    @@map("pool_bbc_history")
+}
+
+model PoolRateHistory {
+    id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+    value     Float     @default(0)
+    time      String    @default("00:00:00") @db.VarChar(10)
+    date      String    @default("01/01/1970") @db.VarChar(10)
+    createdAt DateTime  @default(now()) @map("created_at")
+    poolId    String    @map("pool_id") @db.Uuid
+    pool      PoolValue @relation(fields: [poolId], references: [id])
+
+    @@index([poolId])
+    @@index([createdAt])
+    @@map("pool_rate_history")
+}

@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "account" ADD COLUMN     "gift_address" TEXT,
+ADD COLUMN     "wallet_address" VARCHAR(255);
+
+-- AlterTable
+ALTER TABLE "bonus_event" ALTER COLUMN "broker_id" SET DEFAULT E'00000000-0000-0000-0000-000000000000',
+ALTER COLUMN "created_id" SET DEFAULT E'00000000-0000-0000-0000-000000000000';

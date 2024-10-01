@@ -1,4 +1,4 @@
-import { QUEUES } from '@app/common';
+import { QUEUES } from '@app/common/constants';
 import {
   ClientProxyFactory,
   RmqOptions,

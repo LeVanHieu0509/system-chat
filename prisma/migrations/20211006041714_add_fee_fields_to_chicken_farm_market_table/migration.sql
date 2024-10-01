@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "chicken_farm_market" ADD COLUMN     "fee_percent" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "fee_total" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "fee_type" SMALLINT NOT NULL DEFAULT 1;
