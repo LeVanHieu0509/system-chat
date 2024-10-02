@@ -37,21 +37,29 @@ function getTableFromSQL(sql: string): string {
   return '_' + table.replace(/"/gm, '').replace('.', '_');
 }
 
+// Phương thức này cho phép thực hiện các giao dịch trong Prisma. Nhận vào một mảng các promise và thực hiện chúng như một giao dịch.
 export class BaseClient {
   protected readonly _logger = new Logger(BaseClient.name);
-  protected readonly _client: PrismaClient;
+  protected readonly _client: PrismaClient; //Khởi tạo client Prisma với cấu hình để ghi log các câu lệnh SQL.
   protected _logClient: MongoClient | null = null; // Khởi tạo _logClient là null
   protected _service: string;
 
   constructor() {
     this._client = new PrismaClient({
+      // Ghi lại log dưới dạng sự kiện.
+      // Log ở mức độ query, tức là ghi lại các câu lệnh SQL được thực thi.
+
       log: [{ emit: 'event', level: 'query' }],
     });
 
+    // MongoDB được sử dụng để lưu trữ các log SQL (INSERT, UPDATE, DELETE), giúp theo dõi hoạt động của cơ sở dữ liệu.
     (async () => {
       if (DATABASE_LOG) {
+        // Được khởi tạo với cấu hình tlsInsecure: true để bỏ qua việc xác thực chứng chỉ TLS.
         const logClient = new MongoClient(DATABASE_LOG, { tlsInsecure: true });
+
         try {
+          // Nếu kết nối thành công, ghi log với mức verbose
           await logClient.connect();
           this._logClient = logClient;
           this._logger.verbose('Connected to MongoDB successfully...');
@@ -62,9 +70,13 @@ export class BaseClient {
     })();
 
     // Đăng ký sự kiện để log các câu lệnh SQL
+    // Sử dụng middleware để ghi lại thời gian thực hiện của mỗi câu lệnh SQL và gọi logQuery để ghi log chi tiết.
     this._client.$use(async (params, next) => {
+      // Khi một câu lệnh SQL được thực thi, lưu lại thời điểm bắt đầu (start = Date.now()).
       const start = Date.now();
       const result = await next(params);
+
+      // Sau khi câu lệnh được thực thi, tính toán thời gian hoàn thành bằng cách lấy hiệu giữa thời gian kết thúc và thời gian bắt đầu
       const duration = Date.now() - start;
 
       this.logQuery(params.model, params.action, duration);
@@ -80,23 +92,29 @@ export class BaseClient {
   }
 
   // Phương thức thực hiện migration
+  // Phương thức này thực hiện việc di cư cơ sở dữ liệu (migration) khi không chạy trong môi trường local.
+  // Sử dụng child_process để gọi lệnh di cư từ yarn.
   private async executeMigration() {
     if (NODE_ENV !== 'local') {
       await new Promise((resolve, reject) => {
         const { exec } = require('child_process');
+
+        // Lệnh này sử dụng Prisma để áp dụng (deploy) các migrations đã được tạo ra cho cơ sở dữ liệu.
+        // Nó sẽ điều chỉnh cơ sở dữ liệu theo các thay đổi trong mô hình dữ liệu(schema).
         const migrate = exec(
           'yarn prisma migrate deploy',
-          { env: process.env },
+          { env: process.env }, // Các biến môi trường hiện tại (process.env) được truyền vào để lệnh có thể sử dụng chúng khi thực thi.
           (err) => (err ? reject(err) : resolve(true)),
         );
-        // Chuyển tiếp stdout và stderr đến process này
+        // Chuyển tiếp stdout và stderr đến process này, giúp hiển thị lỗi trên terminal.
         migrate.stdout.pipe(process.stdout);
         migrate.stderr.pipe(process.stderr);
       });
     }
   }
 
-  // Phương thức log các câu lệnh SQL
+  // Phương thức log các câu lệnh SQL (chỉ với các lệnh INSERT, UPDATE, DELETE) vào MongoDB.
+
   private async logQuery(sql: string, params: string, duration?: number) {
     if (sql && this._logClient && /INSERT INTO|UPDATE|DELETE FROM/.test(sql)) {
       const table = getTableFromSQL(sql);
@@ -104,9 +122,13 @@ export class BaseClient {
         this._service === 'CMS' ? 'sql_log_cms' : 'sql_log' + table;
 
       const current = new Date();
+
+      //  Định dạng ngày theo chuẩn Việt Nam và sử dụng múi giờ Asia/Ho_Chi_Minh.
       const date = current.toLocaleDateString('vi-VN', {
         timeZone: 'Asia/Ho_Chi_Minh',
       });
+
+      // Định dạng thời gian tương tự, lấy ra thời gian cụ thể theo múi giờ.
       const time = current.toLocaleTimeString('vi-VN', {
         timeZone: 'Asia/Ho_Chi_Minh',
       });
@@ -122,3 +144,10 @@ export class BaseClient {
     }
   }
 }
+
+/*
+    Lớp BaseClient này quản lý việc kết nối với cơ sở dữ liệu thông qua Prisma, 
+    ghi lại các câu lệnh SQL vào MongoDB và xử lý các giao dịch. 
+    Nó cũng đảm bảo rằng các migration được thực hiện đúng cách tùy thuộc vào môi trường của ứng dụng. 
+    Các câu lệnh SQL và các chi tiết liên quan đến thời gian thực hiện đều được ghi lại để phục vụ cho việc phân tích và debug sau này.
+*/

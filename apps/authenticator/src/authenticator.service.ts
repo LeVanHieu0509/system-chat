@@ -1,14 +1,9 @@
 import { OTP_TYPE } from '@app/common/constants';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
-import {
-  BadRequestException,
-  Inject,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { OTPRequestDto } from 'libs/dto/src';
 import { MainRepo } from 'libs/repositories/main.repo';
+import { UtilsService } from 'libs/utils/src';
 
 const HiddenChar = '*********';
 const REASON = {
@@ -40,7 +35,6 @@ export class AuthenticatorService {
         .getAccount()
         .count({ where: { email } });
 
-      console.log({ isEmailExist });
       if (isEmailExist) {
         throw new BadRequestException([
           { field: 'email', message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_EXIST },
@@ -48,7 +42,7 @@ export class AuthenticatorService {
       }
     }
 
-    // const key = email ? email : UtilsService.getInstance().toIntlPhone(phone);
+    const key = email ? email : UtilsService.getInstance().toIntlPhone(phone);
     // const otp = await this._otp.generateOTP(key + type, type);
 
     // if (!otp)
@@ -58,7 +52,7 @@ export class AuthenticatorService {
     //     HttpStatus.TOO_MANY_REQUESTS,
     //   );
 
-    // const token = UtilsService.getInstance().randomToken(24);
+    const token = UtilsService.getInstance().randomToken(24);
     // CachingService.getInstance().set(token, true, this._otp.getExpires(type));
     // if (email) {
     //   MailService.getInstance().sendOTP(
@@ -67,10 +61,6 @@ export class AuthenticatorService {
     //     OTP_CONFIG[type as OTP_TYPE].ttl.value,
     //   );
     // }
-    // return { token };
-
-    return {
-      token: '1312313123123123',
-    };
+    return { token };
   }
 }
