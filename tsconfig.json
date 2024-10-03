@@ -1,28 +1,28 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2021",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "incremental": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false,
+    "module": "commonjs", // Chỉ định hệ thống module, ở đây sử dụng "commonjs", phù hợp cho Node.js.
+    "declaration": true, // Tạo các tệp .d.ts cho các tệp TypeScript, giúp định nghĩa kiểu cho các thư viện bên ngoài.
+    "removeComments": true, // Loại bỏ tất cả các comment trong mã JavaScript sau khi biên dịch.
+    "emitDecoratorMetadata": true, // Bật tính năng phát sinh metadata cho decorators, hữu ích với Angular hoặc NestJS.
+    "experimentalDecorators": true, // Cho phép sử dụng decorators thử nghiệm trong TypeScript.
+    "allowSyntheticDefaultImports": true, // Cho phép nhập khẩu mặc định cho các module không có khai báo mặc định.
+    "target": "ES2021", // Mục tiêu biên dịch thành phiên bản ECMAScript 2021, hỗ trợ các tính năng JavaScript hiện đại.
+    "sourceMap": true, // Tạo các file source map để hỗ trợ việc gỡ lỗi.
+    "outDir": "./dist", // Chỉ định thư mục đầu ra sau khi biên dịch là thư mục dist.
+    "baseUrl": "./", // Xác định thư mục gốc để giải quyết các đường dẫn tương đối.
+    "incremental": true, // Bật tính năng biên dịch tăng dần, giúp giảm thời gian biên dịch bằng cách chỉ biên dịch lại các phần đã thay đổi.
+    "resolveJsonModule": true, // Cho phép nhập khẩu các tệp JSON như các module.
+    "skipLibCheck": true, // Bỏ qua kiểm tra kiểu dữ liệu trong các tệp thư viện .d.ts, giúp giảm thời gian biên dịch.
+    "strictNullChecks": false, // Vô hiệu hóa kiểm tra null nghiêm ngặt, cho phép biến có giá trị `null` hoặc `undefined` mà không cần kiểm tra rõ ràng.
+    "noImplicitAny": false, // Không bắt buộc khai báo kiểu cho các biến không xác định kiểu, cho phép kiểu `any`.
+    "strictBindCallApply": false, // Không kiểm tra chặt chẽ khi sử dụng các phương thức `.bind`, `.call`, hoặc `.apply`.
+    "forceConsistentCasingInFileNames": false, // Không bắt buộc tính nhất quán về chữ hoa/chữ thường trong tên tệp.
+    "noFallthroughCasesInSwitch": false, // Không kích hoạt cảnh báo về việc rơi qua (fallthrough) giữa các trường hợp trong câu lệnh switch.
     "paths": {
-      "@app/common": ["libs/common/src"],
-      "@app/common/*": ["libs/common/src/*"]
+      "@app/common": ["libs/common/src"], // Định nghĩa alias `@app/common` trỏ đến `libs/common/src`.
+      "@app/common/*": ["libs/common/src/*"] // Alias cho các tệp và thư mục con trong `libs/common/src`.
     }
   },
-  "include": ["apps/**/*", "libs/**/*"],
-  "exclude": ["node_modules", "**/*.spec.ts"]
+  "include": ["apps/**/*", "libs/**/*"], // Bao gồm tất cả các tệp trong thư mục apps và libs.
+  "exclude": ["node_modules", "**/*.spec.ts"] // Loại trừ thư mục node_modules và các tệp kiểm thử (spec.ts).
 }

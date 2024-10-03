@@ -71,3 +71,34 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](LICENSE).
+
+{
+"collection": "@nestjs/schematics", // Chỉ định các schematics sử dụng cho NestJS (như các mẫu scaffolding).
+"sourceRoot": "apps/gateway/src", // Đường dẫn đến mã nguồn chính của dự án, ở đây là dự án "gateway".
+"monorepo": true, // Đây là một dự án monorepo, có nhiều ứng dụng con cùng nằm trong một repo.
+"root": "apps/gateway", // Thư mục gốc của dự án chính là "apps/gateway".
+"compilerOptions": {
+"webpack": true, // Sử dụng Webpack để bundling ứng dụng.
+"tsConfigPath": "apps/gateway/tsconfig.app.json" // Đường dẫn đến tệp tsconfig cho dự án gateway.
+},
+"projects": {
+"gateway": {
+"type": "application", // Loại dự án là một "application" (ứng dụng).
+"root": "apps/gateway", // Thư mục gốc của ứng dụng gateway.
+"entryFile": "main", // Tệp bắt đầu của ứng dụng là "main.ts".
+"sourceRoot": "apps/gateway/src", // Đường dẫn đến mã nguồn chính của ứng dụng gateway.
+"compilerOptions": {
+"tsConfigPath": "apps/gateway/tsconfig.app.json" // Đường dẫn đến tệp tsconfig dành riêng cho ứng dụng này.
+}
+},
+"authenticator": {
+"type": "application", // Loại dự án này cũng là một ứng dụng.
+"root": "apps/authenticator", // Thư mục gốc của ứng dụng authenticator.
+"entryFile": "main", // Tệp bắt đầu của ứng dụng là "main.ts".
+"sourceRoot": "apps/authenticator/src", // Đường dẫn đến mã nguồn chính của ứng dụng authenticator.
+"compilerOptions": {
+"tsConfigPath": "apps/authenticator/tsconfig.app.json" // Đường dẫn đến tệp tsconfig dành riêng cho ứng dụng này.
+}
+}
+}
+}

@@ -1,4 +1,4 @@
 {
-  "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"]
+  "extends": "./tsconfig.json", // Tệp này kế thừa tất cả các cấu hình từ tệp tsconfig.json hiện có.
+  "exclude": ["node_modules", "test", "dist", "**/*spec.ts"] // Loại trừ các thư mục node_modules, test, dist và tất cả các tệp kiểm thử có đuôi .spec.ts.
 }
