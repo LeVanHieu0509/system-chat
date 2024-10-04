@@ -1,10 +1,11 @@
-import { REQUEST_LIMIT, TIME_TO_LIMIT } from 'libs/config';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { json, urlencoded } from 'express';
 import rateLimit from 'express-rate-limit';
-import { urlencoded, json } from 'express';
+import { REQUEST_LIMIT, TIME_TO_LIMIT } from 'libs/config';
 import { AppModule } from './app.module';
 import { GatewayExceptionFilter } from './filter';
+import * as cookieParser from 'cookie-parser';
 
 // const logger = new Logger('Bitback-Main');
 
@@ -12,6 +13,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.use(json());
   app.use(urlencoded({ extended: true }));
+  app.use(cookieParser());
   app.enableCors({ allowedHeaders: '*', exposedHeaders: '*', origin: '*' });
 
   const ttl = TIME_TO_LIMIT;
