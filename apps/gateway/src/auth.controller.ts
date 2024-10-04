@@ -87,7 +87,6 @@ export class AuthController {
   // --------------------------------------- BITBACK ----------------------------------------//
 
   @ApiOperation({ summary: 'Request Otp' })
-  @ApiParam({ name: 'id', description: 'The ID of the item to retrieve' })
   @ApiResponse({ status: 200, description: 'Created' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
@@ -97,7 +96,6 @@ export class AuthController {
 
   // Áp dụng một validation pipe để kiểm tra dữ liệu đầu vào.
   // skipMissingProperties: true có nghĩa là bỏ qua việc kiểm tra các thuộc tính bị thiếu.
-  @HttpCode(HttpStatus.OK)
   @UsePipes(new MainValidationPipe({ skipMissingProperties: true }))
   @Post('request-otp')
 
