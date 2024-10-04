@@ -1,25 +1,42 @@
-import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { Logger, MiddlewareConsumer, Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { HttpModule } from '@nestjs/axios';
 import authenticatorQueueProvider from '@app/common/providers/queues/authenticator-queue.provider';
 import { SessionController } from './session.controller';
 import { SessionMiddleware } from './middleware/session.middleware';
+import rateLimit from 'express-rate-limit';
+import { REQUEST_LIMIT, TIME_TO_LIMIT } from 'libs/config';
 
 @Module({
   imports: [HttpModule],
   controllers: [AuthController, SessionController], // module này sẽ chịu trách nhiệm quản lý các route liên quan đến xác thực (auth). Controller nhận các yêu cầu HTTP từ client và chuyển đến AuthService để xử lý.
   providers: [AuthService, authenticatorQueueProvider], // Đây là các provider được khai báo trong module.
 })
-
-/*
-    Lớp SessionMiddleware được tạo để quản lý cấu hình và áp dụng session.
-    Middleware được áp dụng cho toàn bộ ứng dụng thông qua MiddlewareConsumer trong AppModule.
-    Session middleware vẫn hoạt động như mong đợi, và bạn có thể truy cập session trong các controller thông qua decorator @Session().
-*/
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(SessionMiddleware).forRoutes('*');
+    const ttl = TIME_TO_LIMIT;
+    const max = REQUEST_LIMIT;
+
+    const logger = new Logger('Bitback-Main');
+
+    const rateLimiter = rateLimit({
+      windowMs: TIME_TO_LIMIT * 1000 || 1000,
+      max: REQUEST_LIMIT || 20,
+    });
+
+    logger.log(`Rate Limit - TTL: ${ttl}, Max: ${max}`);
+
+    // Middleware kiểm tra điều kiện để áp dụng rate limiter
+    const conditionalRateLimiter = (req, res, next) => {
+      if (req.originalUrl.includes('/swagger')) {
+        return next();
+      }
+
+      rateLimiter(req, res, next);
+    };
+
+    consumer.apply(conditionalRateLimiter, SessionMiddleware).forRoutes('*');
   }
 }
 

@@ -8,7 +8,7 @@
 
 1. Chịu trách nhiệm xử lý các request và trả ra response về cho client
 2. Sử dụng nest g controller [name] để gen auto create controller.
-3.
+3. Redirect: để chuyển hướng từ controller này qua controller khác
 
 ### English
 
