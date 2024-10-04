@@ -31,7 +31,6 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger setup
   SwaggerSetup.setup(app);
 
   const port = process.env.PORT || 3000;
