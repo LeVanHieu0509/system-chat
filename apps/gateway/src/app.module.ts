@@ -1,12 +1,12 @@
-import { Logger, MiddlewareConsumer, Module } from '@nestjs/common';
-import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
-import { HttpModule } from '@nestjs/axios';
 import authenticatorQueueProvider from '@app/common/providers/queues/authenticator-queue.provider';
-import { SessionController } from './session.controller';
-import { SessionMiddleware } from './middleware/session.middleware';
+import { HttpModule } from '@nestjs/axios';
+import { Logger, MiddlewareConsumer, Module } from '@nestjs/common';
 import rateLimit from 'express-rate-limit';
 import { REQUEST_LIMIT, TIME_TO_LIMIT } from 'libs/config';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { SessionMiddleware } from './middleware/session.middleware';
+import { SessionController } from './session.controller';
 
 @Module({
   imports: [HttpModule],
