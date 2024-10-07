@@ -4,6 +4,12 @@ import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { AuthenticatorModule } from './authenticator.module';
 import { QUEUES } from '@app/common/constants';
+import apm from 'elastic-apm-node';
+import {
+  ELASTIC_APM_ENABLE,
+  ELASTIC_APM_SERVER_URL,
+  ELASTIC_APM_SERVICE_NAME,
+} from 'libs/config';
 
 /*
   Cụ thể, nó triển khai một microservice sử dụng hàng đợi RabbitMQ.
@@ -20,6 +26,19 @@ async function bootstrap() {
     AuthenticatorModule,
     authenticatorQueueOptionsProducer,
   );
+  // console.log({ apm });
+  // // Kiểm tra và khởi tạo Elastic APM
+  // if (Boolean(ELASTIC_APM_ENABLE)) {
+  //   if (apm.isStarted()) {
+  //     console.log('APM running on Authen');
+  //   } else {
+  //     apm.start({
+  //       serviceName: ELASTIC_APM_SERVICE_NAME,
+  //       serverUrl: ELASTIC_APM_SERVER_URL,
+  //     });
+  //     console.log('APM Started on Authen');
+  //   }
+  // }
 
   // Đoạn mã này khởi động microservice và bắt đầu lắng nghe các tin nhắn đến từ hàng đợi cats_queue
   app.listen();

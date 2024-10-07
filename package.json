@@ -57,6 +57,7 @@
     "cookie-parser": "^1.4.6",
     "crypto-ts": "^1.0.2",
     "dotenv": "^16.4.5",
+    "elastic-apm-node": "^4.7.3",
     "express-rate-limit": "^7.4.0",
     "express-session": "^1.18.0",
     "graphql": "^16.8.0",
