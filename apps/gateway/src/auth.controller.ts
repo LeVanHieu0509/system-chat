@@ -19,7 +19,7 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { OTPRequestDto } from 'libs/dto/src';
+import { FindAccountRequestDto, OTPRequestDto } from 'libs/dto/src';
 import { AuthService } from './auth.service';
 
 /*
@@ -40,6 +40,10 @@ Nếu sử dụng mà không sài res.send or res.json thì server sẽ bị tre
 */
 
 @ApiTags('Auth')
+@ApiResponse({ status: 200, description: 'Created' })
+@ApiResponse({ status: 401, description: 'Unauthorized' })
+@ApiResponse({ status: 403, description: 'Forbidden' })
+@ApiResponse({ status: 404, description: 'Not Found' })
 @Controller('auth')
 export class AuthController {
   // Tạo một logger để ghi log các sự kiện trong controller.
@@ -87,10 +91,6 @@ export class AuthController {
   // --------------------------------------- BITBACK ----------------------------------------//
 
   @ApiOperation({ summary: 'Request Otp' })
-  @ApiResponse({ status: 200, description: 'Created' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
-  @ApiResponse({ status: 404, description: 'Not Found' })
   @Public() // Decorator này chỉ ra rằng route này là public, không cần xác thực.
   @HttpCode(HttpStatus.OK) //Đặt mã trạng thái trả về HTTP là 200 (OK) nếu yêu cầu thành công.
 
@@ -117,6 +117,13 @@ export class AuthController {
     else {
       return false;
     }
+  }
+
+  @ApiOperation({ summary: 'Get Account' })
+  @Post('get-account')
+  async getAccount(@Body() body: FindAccountRequestDto) {
+    this._logger.log(`getAccount --> params: ${JSON.stringify(body)}`);
+    return await this.authService.getAccount(body);
   }
 }
 

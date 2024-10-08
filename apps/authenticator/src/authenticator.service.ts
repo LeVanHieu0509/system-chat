@@ -1,7 +1,12 @@
-import { OTP_TYPE } from '@app/common/constants';
+import {
+  DEFAULT_EXPIRES_GET,
+  MESSAGE_PATTERN,
+  OTP_TYPE,
+} from '@app/common/constants';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { OTPRequestDto } from 'libs/dto/src';
+import { CachingService } from 'libs/caching/src';
+import { Account, FindAccountRequestDto, OTPRequestDto } from 'libs/dto/src';
 import { MainRepo } from 'libs/repositories/main.repo';
 import { UtilsService } from 'libs/utils/src';
 
@@ -63,4 +68,97 @@ export class AuthenticatorService {
     // }
     return { token };
   }
+
+  async getAccount(
+    params: FindAccountRequestDto & { id?: string },
+    profile = false,
+  ) {
+    //1. ghi logs
+    this._logger.log(`get account Query --> ${JSON.stringify(params)}`);
+    //2. create catching key
+    const { email, id, phone } = params;
+    const key = id
+      ? id
+      : phone
+      ? UtilsService.getInstance().toIntlPhone(phone)
+      : email;
+
+    //3. check cache -> if exists return account
+    const cachingKey = MESSAGE_PATTERN.AUTH.FIND_ACCOUNT + `${key}-${profile}`;
+
+    let account = await CachingService.getInstance().get(cachingKey);
+
+    if (account) return account as Account;
+    else {
+      //4. If not exists => query in db
+      this._logger.log(JSON.stringify(cachingKey));
+      account = await this._repo.getAccount().findFirst({
+        where: {
+          OR: [{ phone: key }, { email }, { id }],
+        },
+        select: {
+          id: true,
+          avatar: true,
+          status: true,
+          email: true,
+          phone: true,
+          emailVerified: true,
+          passcode: true,
+          deviceToken: true,
+          fullName: true,
+          referralCode: true,
+          walletAddress: true,
+          giftAddress: true,
+          phoneVerified: profile,
+          referralLink: profile,
+          isPartner: profile,
+          kycStatus: profile,
+          createdAt: profile,
+          updatedAt: profile,
+          accountReferralFrom: profile && {
+            select: { referralByInfo: { select: { id: true, email: true } } },
+          },
+          accountSetting: profile && {
+            select: { receiveNotify: true, language: true },
+          },
+        },
+      });
+
+      // if (account['accountReferralFrom']) {
+      //   account['referralBy'] = account['accountReferralFrom']?.referralByInfo;
+      //   delete account['accountReferralFrom'];
+      // }
+
+      //5. save account into cache with expired after
+      await CachingService.getInstance().set(
+        cachingKey,
+        account,
+        DEFAULT_EXPIRES_GET,
+      );
+    }
+  }
+
+  async verifyPasscodeSignIn() {}
+  async verifyPasscode() {}
+  async saveAccount() {}
+  async checkOTP() {}
+  async checkPhone() {}
+  async preCheckPhone() {}
+  async resetPasscode() {}
+  async signIn() {}
+  async editAccount() {}
+  async changeEmail() {}
+  async confirmEmail() {}
+  async changePhone() {}
+  async confirmPhone() {}
+  async syncContacts() {}
+  async getContacts() {}
+  async settingProfile() {}
+  async updateAccountSetting() {}
+  async updateDeviceToken() {}
+  async getTransactionHistory() {}
+  async getNotification() {}
+  async updateSeenNotification() {}
+  async countNotification() {}
+  async readAllNotifications() {}
 }

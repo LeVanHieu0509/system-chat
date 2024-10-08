@@ -1,7 +1,11 @@
 import { MESSAGE_PATTERN, QUEUES } from '@app/common/constants';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { OTPRequestDto, OTPTypeRequestDto } from 'libs/dto/src';
+import {
+  FindAccountRequestDto,
+  OTPRequestDto,
+  OTPTypeRequestDto,
+} from 'libs/dto/src';
 
 @Injectable()
 export class AuthService {
@@ -23,6 +27,20 @@ export class AuthService {
     } catch (error) {
       this._logger.error('Error sending OTP request:', error);
       throw new Error('Failed to process OTP request. Please try again later.');
+    }
+  }
+
+  async getAccount(
+    body: FindAccountRequestDto & { id?: string },
+  ): Promise<any> {
+    try {
+      return this._clientAuth.send<
+        boolean,
+        FindAccountRequestDto & { id?: string }
+      >(MESSAGE_PATTERN.AUTH.FIND_ACCOUNT, body);
+    } catch (error) {
+      this._logger.error('Error getAccount request:', error);
+      throw new Error('Failed to getAccount request. Please try again later.');
     }
   }
 }
