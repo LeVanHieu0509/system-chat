@@ -1,4 +1,4 @@
-import { isShallowEqual } from '../../../utils/index';
+import { isShallowEqual } from 'apps/authenticator/src/utils';
 import NodeLink from '.';
 
 class DoublyLinkedList {
