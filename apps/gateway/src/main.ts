@@ -7,6 +7,7 @@ import { SwaggerSetup } from 'libs/swagger/swagger.module';
 import { AppModule } from './app.module';
 import { GatewayExceptionFilter } from './filter';
 import { logger } from './middleware/global.middleware';
+import { BadRequestExceptionFilter } from '@app/common/filters/bad-request.filter';
 
 // const logger = new Logger('Bitback-Main');
 
@@ -22,7 +23,7 @@ async function bootstrap() {
   app.use(logger);
 
   app.useGlobalFilters(new GatewayExceptionFilter());
-  // app.useGlobalFilters(new BadRequestExceptionFilter());
+  app.useGlobalFilters(new BadRequestExceptionFilter());
   // app.useGlobalInterceptors(new TransformResponseInterceptor());
   // app.useGlobalInterceptors(new VersionInterceptor());
 
