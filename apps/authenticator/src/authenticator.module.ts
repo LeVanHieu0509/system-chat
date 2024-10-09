@@ -7,11 +7,11 @@ import { HttpExceptionFilter } from '@app/common/filters/http-exception.filter';
 import { RepoModule } from 'libs/repositories/repo.module';
 
 @Module({
-  imports: [RepoModule, HttpModule], //TypeOrmModule.forRoot(configService.getTypeOrmConfig())
+  imports: [RepoModule, HttpModule], //để nhập các module khác cần thiết.
   controllers: [AuthenticatorController],
   providers: [
     AuthenticatorService,
-    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter }, // để xử lý logic hoặc thêm các thành phần hỗ trợ (như filter xử lý lỗi).
   ],
 })
 export class AuthenticatorModule {}

@@ -6,6 +6,7 @@ import { json, urlencoded } from 'express';
 import { SwaggerSetup } from 'libs/swagger/swagger.module';
 import { AppModule } from './app.module';
 import { GatewayExceptionFilter } from './filter';
+import { logger } from './middleware/global.middleware';
 
 // const logger = new Logger('Bitback-Main');
 
@@ -16,6 +17,9 @@ async function bootstrap() {
   app.use(urlencoded({ extended: true }));
   app.use(cookieParser());
   app.enableCors({ allowedHeaders: '*', exposedHeaders: '*', origin: '*' });
+
+  // Global middleware
+  app.use(logger);
 
   app.useGlobalFilters(new GatewayExceptionFilter());
   // app.useGlobalFilters(new BadRequestExceptionFilter());
