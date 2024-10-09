@@ -1,15 +1,9 @@
+import { QUEUES } from '@app/common/constants';
 import { authenticatorQueueOptionsProducer } from '@app/common/providers/queues/authenticator-queue.provider';
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { AuthenticatorModule } from './authenticator.module';
-import { QUEUES } from '@app/common/constants';
-import apm from 'elastic-apm-node';
-import {
-  ELASTIC_APM_ENABLE,
-  ELASTIC_APM_SERVER_URL,
-  ELASTIC_APM_SERVICE_NAME,
-} from 'libs/config';
 
 /*
   Cụ thể, nó triển khai một microservice sử dụng hàng đợi RabbitMQ.

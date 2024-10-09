@@ -15,6 +15,7 @@ export class AuthService {
   // Điều này giúp controller có thể gửi tin nhắn qua RabbitMQ đến các microservice khác.
 
   constructor(
+    // @Inject(QUEUES.AUTHENTICATOR) được sử dụng để inject provider authenticatorQueueProvider vào AuthService.
     @Inject(QUEUES.AUTHENTICATOR) private readonly _clientAuth: ClientProxy,
   ) {}
 
