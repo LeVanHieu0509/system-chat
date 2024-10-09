@@ -27,15 +27,6 @@ async function bootstrap() {
   // app.useGlobalInterceptors(new TransformResponseInterceptor());
   // app.useGlobalInterceptors(new VersionInterceptor());
 
-  // Validation Pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true, // Remove properties that are not expected
-      forbidNonWhitelisted: true, // Throw an error if non-whitelisted properties are found
-      transform: true, // Automatically transform payloads to match DTO classes
-    }),
-  );
-
   SwaggerSetup.setup(app);
 
   const port = process.env.PORT || 3000;

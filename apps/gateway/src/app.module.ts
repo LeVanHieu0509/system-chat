@@ -5,9 +5,9 @@ import rateLimit from 'express-rate-limit';
 import { REQUEST_LIMIT, TIME_TO_LIMIT } from 'libs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { LoggerMiddleware } from './middleware/logger.middleware';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { SessionController } from './session.controller';
-import { LoggerMiddleware } from './middleware/logger.middleware';
 
 @Module({
   imports: [HttpModule], // HttpModule được import để sử dụng các tính năng về HTTP

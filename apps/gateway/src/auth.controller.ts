@@ -96,7 +96,7 @@ export class AuthController {
 
   // Áp dụng một validation pipe để kiểm tra dữ liệu đầu vào.
   // skipMissingProperties: true có nghĩa là bỏ qua việc kiểm tra các thuộc tính bị thiếu.
-  @UsePipes(new MainValidationPipe({ skipMissingProperties: true }))
+  @UsePipes(new MainValidationPipe())
   @Post('request-otp')
 
   // Phương thức này xử lý logic khi người dùng gửi yêu cầu OTP:
@@ -120,6 +120,7 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Get Account' })
+  @UsePipes(new MainValidationPipe())
   @Post('get-account')
   async getAccount(@Body() body: FindAccountRequestDto) {
     this._logger.log(`getAccount --> params: ${JSON.stringify(body)}`);

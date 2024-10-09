@@ -15,8 +15,6 @@ import {
   IsPhoneNumber,
   IsString,
   IsUrl,
-  registerDecorator,
-  ValidationOptions,
 } from 'class-validator';
 import { CommonResponseDto, PaginationDto, VersionQueryDto } from '../common';
 // import { ethers } from 'ethers';

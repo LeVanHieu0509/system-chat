@@ -55,6 +55,7 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       const message = IS_PRODUCTION
         ? VALIDATE_MESSAGE.SOMETHING_WENT_WRONG
         : exception.message;
+
       response
         .status(status)
         .json(new AppError(exception.name, message, status));

@@ -16,6 +16,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const message = IS_PRODUCTION
       ? VALIDATE_MESSAGE.SOMETHING_WENT_WRONG
       : exception.message;
+
     return new AppError(
       exception.name,
       message,
