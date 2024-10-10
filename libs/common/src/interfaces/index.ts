@@ -1,5 +1,7 @@
 'use strict';
 
+import { Response } from 'express';
+
 export interface IBadRequestExceptionResponse {
   statusCode: number;
   message: unknown;
@@ -12,4 +14,8 @@ export interface IResponse {
   data: unknown;
   page?: number;
   totalRecords?: number;
+}
+
+export interface ResponseCustom extends Response {
+  user: string;
 }

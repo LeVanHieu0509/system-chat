@@ -1,18 +1,44 @@
 import authenticatorQueueProvider from '@app/common/providers/queues/authenticator-queue.provider';
 import { HttpModule } from '@nestjs/axios';
 import { Logger, MiddlewareConsumer, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
 import rateLimit from 'express-rate-limit';
-import { REQUEST_LIMIT, TIME_TO_LIMIT } from 'libs/config';
+import {
+  CMS_JWT_EXPIRATION_TIME,
+  JWT_SECRET_KEY,
+  REQUEST_LIMIT,
+  TIME_TO_LIMIT,
+} from 'libs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { JwtRolesAuthGuard } from './jwt/jwt-roles.guard';
+import { JwtStrategy } from './jwt/jwt.strategy';
 import { LoggerMiddleware } from './middleware/logger.middleware';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { SessionController } from './session.controller';
 
 @Module({
-  imports: [HttpModule], // HttpModule được import để sử dụng các tính năng về HTTP
+  imports: [
+    HttpModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.registerAsync({
+      useFactory: () => {
+        return {
+          secret: JWT_SECRET_KEY,
+          signOptions: { expiresIn: CMS_JWT_EXPIRATION_TIME },
+        };
+      },
+    }),
+  ], // HttpModule được import để sử dụng các tính năng về HTTP
   controllers: [AuthController, SessionController], // module này sẽ chịu trách nhiệm quản lý các route liên quan đến xác thực (auth). Controller nhận các yêu cầu HTTP từ client và chuyển đến AuthService để xử lý.
-  providers: [AuthService, authenticatorQueueProvider], // Đây là các provider được khai báo trong module.
+  providers: [
+    JwtStrategy,
+    AuthService,
+    authenticatorQueueProvider,
+    { provide: APP_GUARD, useClass: JwtRolesAuthGuard },
+  ], // Đây là các provider được khai báo trong module.
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {

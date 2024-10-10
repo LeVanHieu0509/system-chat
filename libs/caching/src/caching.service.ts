@@ -12,7 +12,7 @@ export class CachingService {
         host: REDIS_HOST,
         port: REDIS_PORT,
       },
-      legacyMode: true,
+      // legacyMode: true,
     });
 
     this._redisClient.on('error', (err) => {
@@ -50,8 +50,13 @@ export class CachingService {
   async get<T>(key: string): Promise<T | null> {
     try {
       await this.connect(); // Đảm bảo kết nối trước khi thực hiện thao tác.
-      const value = await this._redisClient.get(key);
-      return value ? (JSON.parse(value) as T) : null;
+      if (this._redisClient.isOpen) {
+        const value = await this._redisClient.get(key);
+        return value ? (JSON.parse(value) as T) : null;
+      } else {
+        console.error('Redis client is not connected');
+        return null;
+      }
     } catch (err) {
       console.error(`Error getting key ${key}:`, err);
       throw err;

@@ -131,6 +131,7 @@ export class SigninRequestDto extends PasscodeDto {
 }
 
 export class AccessTokenRequestDto {
+  @ApiProperty({ type: String })
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID })
   readonly accessToken: string;
 }
@@ -142,25 +143,31 @@ export interface TokenPayloadDto {
 }
 
 export class SignupRequestDto {
+  @ApiProperty({ type: String })
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.PASSCODE_INVALID })
   readonly passcode: string;
 
+  @ApiProperty({ type: String })
   @Allow()
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_STRING })
   readonly token: string;
 
+  @ApiProperty({ type: String })
   @Allow()
   @IsOptional()
   readonly referralBy: string;
 
+  @ApiProperty({ type: String })
   @IsOptional()
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.FULL_NAME_STRING })
   readonly fullName: string;
 
+  @ApiProperty({ type: String })
   @IsOptional()
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.AVATAR_STRING })
   readonly avatar: string;
 
+  @ApiProperty({ type: String })
   @IsOptional()
   @IsEmail(undefined, { message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_INVALID })
   readonly email: string;

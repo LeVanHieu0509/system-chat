@@ -6,20 +6,19 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Headers,
-  HostParam,
   HttpCode,
   HttpStatus,
-  Ip,
   Logger,
-  Param,
   Post,
-  Query,
-  Redirect,
   UsePipes,
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { FindAccountRequestDto, OTPRequestDto } from 'libs/dto/src';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  AccessTokenRequestDto,
+  FindAccountRequestDto,
+  OTPRequestDto,
+  SignupRequestDto,
+} from 'libs/dto/src';
 import { AuthService } from './auth.service';
 
 /*
@@ -53,40 +52,40 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   // --------------------------------------- NESTJS ----------------------------------------//
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  @Post('/nestjs/:id')
-  async nestJs(
-    @Param('id') id: string,
-    @Query('hieu') hieu: string,
-    @Query('hieu1') hieu1: string,
-    @Headers('Authorization') Authorization: string,
-    @Headers('Authorization1') Authorization1: string,
-    @Ip() ip: string,
-    @Headers('x-forwarded-for') forwardedIp: string,
-    @HostParam() hostParam: string,
-  ) {
-    this._logger.log({
-      id,
-      hieu,
-      hieu1,
-      Authorization,
-      Authorization1,
-      ip,
-      forwardedIp,
-      hostParam,
-    });
+  // @Public()
+  // @HttpCode(HttpStatus.OK)
+  // @Post('/nestjs/:id')
+  // async nestJs(
+  //   @Param('id') id: string,
+  //   @Query('hieu') hieu: string,
+  //   @Query('hieu1') hieu1: string,
+  //   @Headers('Authorization') Authorization: string,
+  //   @Headers('Authorization1') Authorization1: string,
+  //   @Ip() ip: string,
+  //   @Headers('x-forwarded-for') forwardedIp: string,
+  //   @HostParam() hostParam: string,
+  // ) {
+  //   this._logger.log({
+  //     id,
+  //     hieu,
+  //     hieu1,
+  //     Authorization,
+  //     Authorization1,
+  //     ip,
+  //     forwardedIp,
+  //     hostParam,
+  //   });
 
-    return { status: 1 };
-  }
+  //   return { status: 1 };
+  // }
 
-  @Post('/redirect')
-  @Redirect('/docs', 302) // Chuyển hướng đến controller khác tại đường dẫn /docs
-  redirectToDocs(@Query('version') version: string) {
-    if (version === '5') {
-      return { url: '/docs/v5' }; // Nếu có version=5, chuyển hướng đến /docs/v5
-    }
-  }
+  // @Post('/redirect')
+  // @Redirect('/docs', 302) // Chuyển hướng đến controller khác tại đường dẫn /docs
+  // redirectToDocs(@Query('version') version: string) {
+  //   if (version === '5') {
+  //     return { url: '/docs/v5' }; // Nếu có version=5, chuyển hướng đến /docs/v5
+  //   }
+  // }
 
   // --------------------------------------- BITBACK ----------------------------------------//
 
@@ -119,12 +118,36 @@ export class AuthController {
     }
   }
 
+  // --------------------------------------- GET ACCOUNT ----------------------------------------//
   @ApiOperation({ summary: 'Get Account' })
+  @HttpCode(HttpStatus.OK)
   @UsePipes(new MainValidationPipe())
   @Post('get-account')
   async getAccount(@Body() body: FindAccountRequestDto) {
     this._logger.log(`getAccount --> params: ${JSON.stringify(body)}`);
     return await this.authService.getAccount(body);
+  }
+
+  // ---------------------------------------Verify Pass code Sign Up ----------------------------------------//
+  @ApiOperation({ summary: 'Verify Pass Code SignUp' })
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('v2/verify-pass-code-sign-up')
+  async verifyPasscodeSignUp(@Body() body: SignupRequestDto) {
+    this._logger.log(`verifyPasscodeSignUp --> body: ${JSON.stringify(body)}`);
+    return await this.authService.verifyPasscodeSignUp(body);
+  }
+
+  // --------------------------------------- Sign Up ----------------------------------------//
+  @ApiOperation({ summary: 'Sign Up With Google' })
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('v2/sign-in-google')
+  async signInWithGoogle(@Body() body: AccessTokenRequestDto) {
+    this._logger.log(`Sign Up With Google --> body: ${JSON.stringify(body)}`);
+    return await this.authService.signInWithGoogle(body);
   }
 }
 
