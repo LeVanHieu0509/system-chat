@@ -133,7 +133,7 @@ export class AuthController {
   @Public()
   @HttpCode(HttpStatus.OK)
   @UsePipes(new MainValidationPipe())
-  @Post('v2/verify-pass-code-sign-up')
+  @Post('v2/sign-up')
   async verifyPasscodeSignUp(@Body() body: SignupRequestDto) {
     this._logger.log(`verifyPasscodeSignUp --> body: ${JSON.stringify(body)}`);
     return await this.authService.verifyPasscodeSignUp(body);

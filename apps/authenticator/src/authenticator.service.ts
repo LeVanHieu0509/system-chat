@@ -241,13 +241,11 @@ export class AuthenticatorService {
   }
 
   async signInWithGoogle(accessToken: string) {
-    this._logger.log(`signInWithGoogle accessToken: ${accessToken}`);
-
     // handle third party to get info from google.
     const googleAccount: Account = {
-      email: 'levanhieu.workspace21@gmail.com',
+      email: UtilsService.getInstance().randomEmail(),
       emailVerified: true,
-      googleId: '12312311111111111111111111111',
+      googleId: UtilsService.getInstance().randomToken(12),
       avatar: 'https://levanhieu@',
       fullName: 'Le Van hieu',
     };

@@ -352,4 +352,24 @@ export class UtilsService {
 
     return 0;
   }
+  randomEmail() {
+    const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+
+    // Tạo phần tên người dùng (username)
+    const usernameLength = Math.floor(Math.random() * 10) + 5; // độ dài ngẫu nhiên từ 5 đến 15 ký tự
+    let username = '';
+    for (let i = 0; i < usernameLength; i++) {
+      username += characters.charAt(
+        Math.floor(Math.random() * characters.length),
+      );
+    }
+
+    // Danh sách các miền phổ biến
+    const domains = ['gmail.com', 'yahoo.com', 'outlook.com', 'example.com'];
+
+    // Chọn một miền ngẫu nhiên
+    const domain = domains[Math.floor(Math.random() * domains.length)];
+
+    return `${username}@${domain}`;
+  }
 }
