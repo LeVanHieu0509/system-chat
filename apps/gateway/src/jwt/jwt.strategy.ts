@@ -7,6 +7,7 @@ import { JWT_SECRET_KEY } from 'libs/config';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { CachingService } from 'libs/caching/src';
 import { MESSAGE_PATTERN, QUEUES } from '@app/common/constants';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -37,9 +38,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     // Gửi yêu cầu đến authClient để lấy thông tin người dùng như phone và kycStatus thông qua microservice
-    const { phone, kycStatus } = await this._clientAuth
-      .send(MESSAGE_PATTERN.AUTH.GET_PROFILE, userId)
-      .toPromise();
+    const { phone, kycStatus } = await firstValueFrom(
+      this._clientAuth.send(MESSAGE_PATTERN.AUTH.GET_PROFILE, userId),
+    );
 
     return { userId, phone, kycStatus };
   }

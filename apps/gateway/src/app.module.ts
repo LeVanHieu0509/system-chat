@@ -1,13 +1,20 @@
 import authenticatorQueueProvider from '@app/common/providers/queues/authenticator-queue.provider';
 import { HttpModule } from '@nestjs/axios';
+import { CacheModule } from '@nestjs/cache-manager';
 import { Logger, MiddlewareConsumer, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import * as redisStore from 'cache-manager-ioredis';
 import rateLimit from 'express-rate-limit';
 import {
+  CACHE_MAX,
+  CACHE_TTL,
   CMS_JWT_EXPIRATION_TIME,
   JWT_SECRET_KEY,
+  REDIS_HOST,
+  REDIS_PASS,
+  REDIS_PORT,
   REQUEST_LIMIT,
   TIME_TO_LIMIT,
 } from 'libs/config';
@@ -18,7 +25,6 @@ import { JwtStrategy } from './jwt/jwt.strategy';
 import { LoggerMiddleware } from './middleware/logger.middleware';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { SessionController } from './session.controller';
-
 @Module({
   imports: [
     HttpModule,
@@ -30,6 +36,16 @@ import { SessionController } from './session.controller';
           signOptions: { expiresIn: CMS_JWT_EXPIRATION_TIME },
         };
       },
+    }),
+    CacheModule.registerAsync({
+      useFactory: () => ({
+        store: redisStore,
+        host: REDIS_HOST,
+        port: REDIS_PORT,
+        auth_pass: REDIS_PASS,
+        ttl: CACHE_TTL,
+        max: CACHE_MAX,
+      }),
     }),
   ], // HttpModule được import để sử dụng các tính năng về HTTP
   controllers: [AuthController, SessionController], // module này sẽ chịu trách nhiệm quản lý các route liên quan đến xác thực (auth). Controller nhận các yêu cầu HTTP từ client và chuyển đến AuthService để xử lý.

@@ -49,4 +49,22 @@ export class AuthenticatorController {
   ) {
     return this._service.validateSignUp(body);
   }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SIGN_IN_VERIFY_PASSCODE)
+  async verifyPasscodeSignIn(
+    @Payload() { id, passcode }: { id: string; passcode: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.verifyPasscodeSignIn(id, passcode);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.GET_PROFILE)
+  async getProfile(
+    @Payload() id: string,
+    @Ack() _: RmqContext,
+  ): Promise<Account> {
+    const account = await this._service.getAccount({ id }, true);
+    delete account.passcode;
+    return account;
+  }
 }

@@ -6,10 +6,13 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Logger,
   Post,
+  Query,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -17,9 +20,12 @@ import {
   AccessTokenRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
+  RefreshTokenRequestDto,
   SignupRequestDto,
+  VerifyPasscodeSigninRequestDto,
 } from 'libs/dto/src';
 import { AuthService } from './auth.service';
+import { CacheInterceptor } from '@nestjs/cache-manager';
 
 /*
 @Request(), @Req()      -- Truy cập toàn bộ đối tượng request (req) từ Express hoặc Fastify.
@@ -148,6 +154,27 @@ export class AuthController {
   async signInWithGoogle(@Body() body: AccessTokenRequestDto) {
     this._logger.log(`Sign Up With Google --> body: ${JSON.stringify(body)}`);
     return await this.authService.signInWithGoogle(body);
+  }
+
+  @ApiOperation({ summary: 'Sign In With PassCode' })
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('v2/verify-passcode')
+  async verifyPasscodeSignIn(@Body() body: VerifyPasscodeSigninRequestDto) {
+    this._logger.log(`verifyPasscodeSignIn -> body: ${JSON.stringify(body)}`);
+    return await this.authService.verifyPasscodeSignIn(body);
+  }
+
+  @ApiOperation({ summary: 'RefreshToken' })
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(CacheInterceptor)
+  @UsePipes(new MainValidationPipe())
+  @Get('refresh-token')
+  async refreshToken(@Query() query: RefreshTokenRequestDto) {
+    this._logger.log(`refreshToken -> query: ${JSON.stringify(query)}`);
+    return await this.authService.refreshToken(query);
   }
 }
 

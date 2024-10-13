@@ -23,10 +23,12 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   OTPTypeRequestDto,
+  RefreshTokenRequestDto,
   SignupRequestDto,
   TokenPayloadDto,
+  VerifyPasscodeSigninRequestDto,
 } from 'libs/dto/src';
-import { last, lastValueFrom } from 'rxjs';
+import { firstValueFrom, last, lastValueFrom } from 'rxjs';
 
 @Injectable()
 export class AuthService {
@@ -87,26 +89,6 @@ export class AuthService {
       ]);
     }
 
-    /*
-     {
-        "email": "levanhieu@gmail.com",
-        "emailVerified": true,
-        "googleId": "1231231",
-        "avatar": "levanhieu@gmail.com",
-        "fullName": "LeVanHieu",
-        "status": 1,
-        "passcode": "$2a$10$7cw/WF1lbIUJRnHOJCAuV.73lpw1ZT.yyV5g3lTbrHOLeHx3gpTuC",
-        "histories": {
-          "histories": [
-            {
-              "reason": "Tạo mới tài khoản thành công.",
-              "updatedAt": "2024-10-10T08:01:19.706Z"
-            }
-          ]
-        },
-        "id": "c3f2401b-fb76-4bce-a293-4725e7b9b372"
-      }
-    */
     const account = await lastValueFrom(
       this._clientAuth.send(MESSAGE_PATTERN.AUTH.SIGN_UP_VERIFY_PASSCODE, body),
     );
@@ -121,12 +103,100 @@ export class AuthService {
 
     // Khi gọi hàm emit(), bạn không cần phải đợi kết quả trả về mà chỉ cần phát đi sự kiện, và các dịch vụ khác sẽ lắng nghe và xử lý sự kiện đó.
     //  Thích hợp để xử lý các sự kiện như cập nhật, tạo mới, thông báo thay đổi.
-    this._clientAuth.emit<string, Account>(
-      MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT,
-      account,
-    );
+
+    // this._clientAuth.emit<string, Account>(
+    //   MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT,
+    //   account,
+    // );
 
     return this.processLogin(account);
+  }
+
+  async verifyPasscodeSignIn(body: VerifyPasscodeSigninRequestDto) {
+    const { passcode, token } = body;
+    let id: string;
+    try {
+      let account = this._jwtService.decode(token);
+      if (account && account['id']) id = account['id'];
+
+      if (!id) {
+        const caching = await CachingService.getInstance().get(
+          MESSAGE_PATTERN.AUTH.SIGN_IN_VERIFY_PASSCODE + token,
+        );
+        if (!caching) {
+          throw new BadRequestException([
+            { field: 'token', message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID },
+          ]);
+        }
+        id = caching['id'];
+      }
+
+      account = await firstValueFrom(
+        this._clientAuth.send<AccountDto, { id: string; passcode: string }>(
+          MESSAGE_PATTERN.AUTH.SIGN_IN_VERIFY_PASSCODE,
+          {
+            id,
+            passcode,
+          },
+        ),
+      );
+      if (!account) {
+        return new BadRequestException([
+          {
+            field: 'passcode',
+            message: VALIDATE_MESSAGE.ACCOUNT.PASSCODE_INVALID,
+          },
+        ]).getResponse();
+      }
+      if (account['error']) return account;
+      CachingService.getInstance().delete(
+        MESSAGE_PATTERN.AUTH.SIGN_IN_VERIFY_PASSCODE + token,
+      );
+      return this.processLogin(account);
+    } catch {
+      return new UnauthorizedException('INVALID_CREDENTIALS').getResponse();
+    }
+  }
+
+  async refreshToken(query: RefreshTokenRequestDto) {
+    console.log({ query });
+    try {
+      const cache = this._jwtService.verify<{ id: string; phone: string }>(
+        query.token,
+        {
+          jwtid: JWT_REFRESH_TOKEN_KEY,
+        },
+      );
+      if (!cache)
+        throw new BadRequestException([
+          { field: 'token', message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID },
+        ]);
+      this._logger.log(`refreshToken --> cache: ${JSON.stringify(cache)}`);
+
+      const tokenFromCache = await CachingService.getInstance().get(
+        `BITBACK-REFRESH-${cache.id}`,
+      );
+      if (tokenFromCache !== query.token)
+        return new UnauthorizedException('INVALID_CREDENTIALS').getResponse();
+
+      const account = await firstValueFrom(
+        this._clientAuth.send<Account, string>(
+          MESSAGE_PATTERN.AUTH.GET_PROFILE,
+          cache.id,
+        ),
+      );
+
+      if (!account)
+        return new UnauthorizedException('INVALID_CREDENTIALS').getResponse();
+      if (account['error']) return account;
+
+      // Khi refresh thì sẽ set lại cặp accessToken và refresh Token mới. Nếu muốn refresh tiếp thì cần sài bộ key mới.
+      return this.processLogin(account);
+    } catch (err) {
+      throw new BadRequestException([
+        { field: 'token', message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID },
+      ]);
+    }
   }
 
   private processLogin(account: {

@@ -92,30 +92,22 @@ export class AuthenticatorService {
   async getAccount(
     params: FindAccountRequestDto & { id?: string },
     profile = false,
-  ) {
-    //1. ghi logs
-    this._logger.log(`get account Query --> ${JSON.stringify(params)}`);
-    //2. create catching key
-    const { email, id, phone } = params;
+  ): Promise<Account> {
+    this._logger.log(`getAccount query: ${JSON.stringify(params)}`);
+
+    const { phone, email, id } = params;
     const key = id
       ? id
       : phone
       ? UtilsService.getInstance().toIntlPhone(phone)
       : email;
-
-    //3. check cache -> if exists return account
     const cachingKey = MESSAGE_PATTERN.AUTH.FIND_ACCOUNT + `${key}-${profile}`;
 
     let account = await CachingService.getInstance().get(cachingKey);
-
     if (account) return account as Account;
     else {
-      //4. If not exists => query in db
-      this._logger.log(JSON.stringify(cachingKey));
       account = await this._repo.getAccount().findFirst({
-        where: {
-          OR: [{ phone: key }, { email }, { id }],
-        },
+        where: { OR: [{ phone: key }, { email }, { id }] },
         select: {
           id: true,
           avatar: true,
@@ -143,18 +135,14 @@ export class AuthenticatorService {
           },
         },
       });
-
-      // if (account['accountReferralFrom']) {
-      //   account['referralBy'] = account['accountReferralFrom']?.referralByInfo;
-      //   delete account['accountReferralFrom'];
-      // }
-
-      //5. save account into cache with expired after
-      await CachingService.getInstance().set(
+      account['referralBy'] = account['accountReferralFrom']?.referralByInfo;
+      delete account['accountReferralFrom'];
+      CachingService.getInstance().set(
         cachingKey,
         account,
         DEFAULT_EXPIRES_GET,
       );
+      return (account ? account : {}) as Account;
     }
   }
 
@@ -297,11 +285,28 @@ export class AuthenticatorService {
         600,
       );
 
-      // Nếu email đã được xác minh (emailVerified), thì bỏ qua thông tin email.
+      /*
+        Nếu email đã được xác minh (emailVerified), thì bỏ qua thông tin email.
+        Email của người dùng đã được xác thực và không cần thay đổi.
+        Giúp tránh trường hợp vô tình ghi đè hoặc làm mất đi email đã được xác minh.
+        Tránh hệ thống có thể ghi đè lên email đã được xác minh, và có thể làm ảnh hưởng tới tính nhất quán và bảo mật của hệ thống.
+
+        Việc đặt newAccount.email = undefined là một cách giúp bảo vệ thông tin email của người dùng đã được xác minh, 
+        tránh cập nhật dư thừa và giảm thiểu rủi ro về bảo mật. 
+        Điều này đảm bảo tính nhất quán và an toàn cho dữ liệu người dùng trong hệ thống.
+     */
+
       if (account.emailVerified) newAccount.email = undefined;
 
       // Sử dụng setTimeout để cập nhật các thông tin mới vào tài khoản trong cơ sở dữ liệu sau 100 ms.
       // Điều này nhằm tránh chờ đợi cập nhật khi trả về kết quả.
+
+      /*
+        1. Kết quả sẽ được trả về cho người dùng ngay lập tức, giúp giảm thời gian chờ đợi cho người dùng
+        2. Mục đích của việc dùng setTimeout là để đẩy việc cập nhật cơ sở dữ liệu ra khỏi luồng chính của quá trình xử lý.
+        3. Giảm thiểu tình trạng "thắt cổ chai" khi có nhiều yêu cầu đồng thời
+        4. Tăng tốc độ phản hồi, tối ưu hóa hiệu suất xử lý, giảm tải cho cơ sở dữ liệu, và đảm bảo trải nghiệm người dùng mượt mà hơn
+      */
       setTimeout(async () => {
         await this._repo
           .getAccount()
@@ -519,7 +524,28 @@ export class AuthenticatorService {
     // this._notification.sendNotifyNewAccount([accountId], des, true);
   }
 
-  async verifyPasscodeSignIn() {}
+  async verifyPasscodeSignIn(id: string, passcode: string) {
+    this._logger.log(`verifyPasscodeSignIn id: ${id} passcode: ${passcode}`);
+
+    const account = await this._repo.getAccount().findUnique({
+      where: { id },
+      select: {
+        id: true,
+        phone: true,
+        email: true,
+        passcode: true,
+        status: true,
+      },
+    });
+    if (
+      account &&
+      UtilsService.getInstance().compareHash(passcode, account.passcode)
+    ) {
+      account.passcode = undefined;
+      return account;
+    }
+    return null;
+  }
   async verifyPasscode() {}
   async checkOTP() {}
   async checkPhone() {}
