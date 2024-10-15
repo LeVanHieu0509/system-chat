@@ -540,6 +540,8 @@ export class AuthenticatorService {
           },
         ],
       };
+
+      // save into database
       await this._repo.transaction(bulkOps);
 
       // Tạo payload để gửi yêu cầu đến hệ thống ví
@@ -547,10 +549,16 @@ export class AuthenticatorService {
       this._logger.log(
         `rewardNewAccount --> payload: ${JSON.stringify(payload)}`,
       );
+
+      // Nếu một CbTrans được tạo thì sẽ thực hiện tăng giảm số tiền thông qua service wallet.
+
       // await this._clientWallet.send(MESSAGE_PATTERN.WALLET.NONE_ACCOUNT_REFERRAL, payload).toPromise();
     } else {
       // Thêm thao tác tạo giao dịch cashback (cbTransaction) vào bulkOps
+
       bulkOps.push(this._repo.getCbTrans().create({ data: cbTransaction }));
+
+      // save into database
       await this._repo.transaction(bulkOps);
     }
 
@@ -580,6 +588,7 @@ export class AuthenticatorService {
     }
     return null;
   }
+
   async verifyPasscode() {}
   async checkOTP() {}
   async checkPhone() {}
