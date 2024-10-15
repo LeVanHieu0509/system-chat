@@ -104,10 +104,10 @@ export class AuthService {
     // Khi gọi hàm emit(), bạn không cần phải đợi kết quả trả về mà chỉ cần phát đi sự kiện, và các dịch vụ khác sẽ lắng nghe và xử lý sự kiện đó.
     //  Thích hợp để xử lý các sự kiện như cập nhật, tạo mới, thông báo thay đổi.
 
-    // this._clientAuth.emit<string, Account>(
-    //   MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT,
-    //   account,
-    // );
+    this._clientAuth.emit<string, Account>(
+      MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT,
+      account,
+    );
 
     return this.processLogin(account);
   }
@@ -159,7 +159,6 @@ export class AuthService {
   }
 
   async refreshToken(query: RefreshTokenRequestDto) {
-    console.log({ query });
     try {
       const cache = this._jwtService.verify<{ id: string; phone: string }>(
         query.token,

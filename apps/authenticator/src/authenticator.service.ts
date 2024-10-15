@@ -151,9 +151,12 @@ export class AuthenticatorService {
 
     const { referralBy, ...account } = input;
 
+    // Truy vấn để lấy danh sách các đồng tiền đang hoạt động (status: STATUS.ACTIVE), chỉ lấy trường id của mỗi đồng tiền.
     const coins = await this._repo
       .getCurrency()
       .findMany({ where: { status: STATUS.ACTIVE }, select: { id: true } });
+
+    // Duyệt qua danh sách các đồng tiền đã lấy và tạo dữ liệu để lưu lại cho tài khoản mới, với lý do "CREATE_ACCOUNT_SUCCESS".
     const coinData = coins.map((c) => ({
       currencyId: c.id,
       reason: COMMON_NOTE_STATUS.CREATE_ACCOUNT_SUCCESS,
@@ -161,9 +164,12 @@ export class AuthenticatorService {
     // const bulkOps: Operation[] = [];
     const bulkOps: PrismaPromise<any>[] = [];
 
+    // Lấy thông tin và thời gian hiện tại
     const dailyLuckyId = UtilsService.getInstance().getDbDefaultValue().id;
     const createdAt = new Date();
+
     // update table account summary
+    // Lấy thông tin chi tiết về ngày, tuần, tháng, năm từ thời điểm hiện tại
     const { day, week, month, year } =
       UtilsService.getInstance().getUnitDate(createdAt);
 
@@ -175,38 +181,60 @@ export class AuthenticatorService {
 
     // bulkOps để có thể thực hiện cùng lúc với các thao tác khác nhằm cải thiện hiệu suất.
     bulkOps.push(
+      // Cập nhật thông tin cho tài khoản với id là account.id
       this._repo.getAccount().update({
         where: { id: account.id },
-        data: { cbAvailable: { createMany: { data: coinData } } },
+
+        // Tạo mới nhiều bản ghi trong bảng cbAvailable (cashback available) với dữ liệu là coinData.
+        // Đây là một cách để thêm nhiều bản ghi liên quan đến số dư hoàn tiền(cashback) của tài khoản
+
+        // Tạo nhiều bản ghi vào bảng cashback_available mà có khoá ngoại được liên kết tới bảng account (Thực hiện insert ở bảng account luôn mới sợ)
+        // cbAvailable đại diện cho một liên kết (relation) giữa bảng tài khoản và bảng hoàn tiền (cashback available).
+        data: { cbAvailable: { createMany: { data: coinData } } }, //Thực hiện cập nhật tài khoản, đồng thời thêm vào thông tin về các khoản hoàn tiền mà tài khoản nhận được một cách nhanh chóng và đồng bộ.
         select: { id: true },
       }),
       this._repo.getAccountDailyLuckyWheel().create({
+        // chứa thông tin về một lần quay thưởng của tài khoản người dùng
         data: {
           id: dailyLuckyId,
-          accountId: account.id,
-          note: COMMON_NOTE_STATUS.CREATE_DAILY_LUCKY_WHEEL,
+          accountId: account.id, // Liên kết tới tài khoản thực hiện lần quay thưởng này
+          note: COMMON_NOTE_STATUS.CREATE_DAILY_LUCKY_WHEEL, // Ghi chú (ví dụ như trạng thái hoặc thông tin về lần quay).
           luckyWheelHistories: {
             luckyWheelHistories: [
               {
-                note: COMMON_NOTE_STATUS.CREATE_DAILY_LUCKY_WHEEL,
-                updatedAt: createdAt.toISOString(),
+                note: COMMON_NOTE_STATUS.CREATE_DAILY_LUCKY_WHEEL, // Ghi chú cụ thể cho lịch sử của lần quay này
+                updatedAt: createdAt.toISOString(), // Thời gian tạo bản ghi lịch sử này.
               },
             ],
           },
         },
       }),
+
+      // thường là để thông báo cho người dùng về một sự kiện cụ thể.
       this._repo.getNotification().create({
         data: {
-          ref: dailyLuckyId,
-          accountId: account.id,
-          type: NOTIFICATION_TYPE.DAILY_REWARD,
-          title: COMMON_TITLE[CASHBACK_TYPE.DAILY_REWARD],
-          description: COMMON_NOTE_STATUS.CREATE_DAILY_LUCKY_WHEEL,
+          ref: dailyLuckyId, // Tham chiếu đến sự kiện vòng quay may mắn hàng ngày, để xác định thông báo này thuộc về sự kiện nào.
+          accountId: account.id, // Liên kết với tài khoản người dùng nhận thông báo.
+          type: NOTIFICATION_TYPE.DAILY_REWARD, // Loại thông báo, ví dụ như "Phần thưởng hàng ngày" (DAILY_REWARD).
+          title: COMMON_TITLE[CASHBACK_TYPE.DAILY_REWARD], // Tiêu đề thông báo, thường là mô tả ngắn gọn về nội dung thông báo.
+          description: COMMON_NOTE_STATUS.CREATE_DAILY_LUCKY_WHEEL, // Mô tả chi tiết về nội dung thông báo (ví dụ như lý do và thông tin về phần thưởng).
         },
       }),
+
+      /*
+        Đây là cách để cập nhật số lần hoặc chỉ số mỗi khi sự kiện nào đó xảy ra, 
+        giúp lưu giữ tổng số cho các hoạt động hàng ngày, hàng tuần hoặc hàng tháng.
+      */
       this._repo.getAccountSummary().upsert({
+        // day_month_year là một khóa xác định, dựa trên ngày, tháng và năm.
+        // Nếu một bản ghi có giá trị ngày, tháng và năm khớp với điều kiện này thì bản ghi đó sẽ được sử dụng cho hành động update,
+        // nếu không có bản ghi nào khớp thì nó sẽ create một bản ghi mới.
         where: { day_month_year: { day, month, year } },
+
+        // Nếu không tìm thấy bản ghi nào khớp với điều kiện trong where, Prisma sẽ tạo một bản ghi mới với các thông tin
         create: { day, month, week, year, value: 1 },
+
+        // Nếu đã có bản ghi khớp với điều kiện trong where, Prisma sẽ cập nhật bản ghi đó.
         update: { value: { increment: 1 } },
       }),
     );
@@ -449,22 +477,22 @@ export class AuthenticatorService {
 
     // Tạo đối tượng giao dịch cashback (cbTransaction) để ghi lại các thông tin như
     const cbTransaction: Prisma.CashbackTransactionUncheckedCreateInput = {
-      currencyId, //ID của loại tiền tệ
-      id: transactionId, //ID tài khoản nhận thưởng
-      status: CASHBACK_STATUS.PROCESSING, // Trạng thái của giao dịch (ở đây là PROCESSING).
-      actionType: CASHBACK_ACTION_TYPE.ADD,
-      amount, // Số tiền thưởng.
-      receiverId: accountId,
-      title: COMMON_TITLE[CASHBACK_TYPE.NON_REFERRAL],
-      description: COMMON_NOTE_STATUS.NON_REFERRAL_PROCESSING,
+      currencyId, //ID của loại tiền tệ - "bf36a218-48dd-4e12-a5f5-de00fd36ff43"
+      id: transactionId, //ID tài khoản nhận thưởng - "de40a3a0-8ad5-11ef-9d77-ed91ef367574"
+      status: CASHBACK_STATUS.PROCESSING, // Trạng thái của giao dịch (ở đây là PROCESSING). - 1
+      actionType: CASHBACK_ACTION_TYPE.ADD, // -- 10
+      amount, // Số tiền thưởng. - 1000
+      receiverId: accountId, // - "46147639-ce89-42d8-b5ec-eaf7ebfadfdc"
+      title: COMMON_TITLE[CASHBACK_TYPE.NON_REFERRAL], // -- "Đăng ký ứng dụng Bitback."
+      description: COMMON_NOTE_STATUS.NON_REFERRAL_PROCESSING, // -- "Phần thưởng sẽ có hiệu lực sau khi định danh eKYC."
       type: CASHBACK_TYPE.NON_REFERRAL,
 
       //Lịch sử thay đổi của cashback với ghi chú và thời gian cập nhật.
       cbHistories: {
         cbHistories: [
           {
-            note: COMMON_NOTE_STATUS.NON_REFERRAL_PROCESSING,
-            updatedAt: new Date().toISOString(),
+            note: COMMON_NOTE_STATUS.NON_REFERRAL_PROCESSING, // -- "Phần thưởng sẽ có hiệu lực sau khi định danh eKYC."
+            updatedAt: new Date().toISOString(), // -- "2024-10-15T09:14:23.322Z"
           },
         ],
       },
@@ -491,6 +519,12 @@ export class AuthenticatorService {
 
     // Nếu không cần KYC (!config.needKyc)
     this._logger.log(`rewardNewAccount --> config: ${JSON.stringify(config)}`);
+    this._logger.log(
+      `rewardNewAccount --> currency: ${JSON.stringify(currency)}`,
+    );
+    this._logger.log(
+      `rewardNewAccount --> cbTransaction: ${JSON.stringify(cbTransaction)}`,
+    );
 
     if (config && !config.needKyc) {
       cbTransaction.status = CASHBACK_STATUS.SUCCESS; // Đặt trạng thái giao dịch cashback thành SUCCESS

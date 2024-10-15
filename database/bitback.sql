@@ -33,32 +33,33 @@ CREATE TABLE `_prisma_migrations` (
   `applied_steps_count` integer NOT NULL DEFAULT 0
 );
 
+-- Lưu trữ thông tin về người dùng hoặc tài khoản
 CREATE TABLE `account` (
-  `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
+  `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()), -- Khóa chính, là UUID của tài khoản
   `avatar` VARCHAR(350),
   `full_name` VARCHAR(255),
   `email` VARCHAR(50),
   `passcode` VARCHAR(100),
-  `email_verified` TINYINT(1) DEFAULT 0,
+  `email_verified` TINYINT(1) DEFAULT 0, -- Xác định xem email đã được xác minh chưa (0: chưa xác minh, 1: đã xác minh).
   `phone` VARCHAR(20),
-  `status` integer NOT NULL DEFAULT 1,
-  `kyc_status` integer NOT NULL DEFAULT 0,
+  `status` integer NOT NULL DEFAULT 1, -- Trạng thái của tài khoản (1: đang hoạt động, 0: không hoạt động).
+  `kyc_status` integer NOT NULL DEFAULT 0, -- Trạng thái xác minh danh tính của tài khoản (ví dụ: KYC - Know Your Customer).
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `referral_code` VARCHAR(8),
-  `device_token` VARCHAR(255),
-  `facebook_id` VARCHAR(50),
+  `referral_code` VARCHAR(8), -- Mã giới thiệu của người dùng
+  `device_token` VARCHAR(255), -- Mã thiết bị, có thể được sử dụng cho thông báo đẩy (push notification).
+  `facebook_id` VARCHAR(50), -- Thông tin liên kết tài khoản
   `google_id` VARCHAR(50),
   `apple_id` VARCHAR(50),
   `is_partner` TINYINT(1) NOT NULL DEFAULT 0,
   `phone_verified` TINYINT(1) DEFAULT 0,
-  `referral_link` VARCHAR(255),
-  `histories` TEXT,
-  `secret_key` VARCHAR(255),
-  `type` VARCHAR(255) NOT NULL DEFAULT ('USER'),
-  `kyc_approval_at` timestamp(3),
-  `gift_address` text,
-  `wallet_address` VARCHAR(255)
+  `referral_link` VARCHAR(255), -- Liên kết giới thiệu của người dùng
+  `histories` TEXT, -- Lịch sử hoạt động của tài khoản.
+  `secret_key` VARCHAR(255), -- Khóa bí mật liên quan đến bảo mật.
+  `type` VARCHAR(255) NOT NULL DEFAULT ('USER'), -- Loại tài khoản.
+  `kyc_approval_at` timestamp(3), -- Thời điểm tài khoản được xác minh danh tính
+  `gift_address` text, -- Địa chỉ để gửi quà.
+  `wallet_address` VARCHAR(255) -- Địa chỉ ví tiền của người dùng.
 );
 
 CREATE TABLE `account_contact` (
@@ -71,21 +72,22 @@ CREATE TABLE `account_contact` (
   PRIMARY KEY (`account_id`, `contact_id`)
 );
 
+-- Bảng account_daily_lucky_wheel dùng để lưu trữ thông tin về vòng quay may mắn hàng ngày của người dùng
 CREATE TABLE `account_daily_lucky_wheel` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `status` smallint NOT NULL DEFAULT 1,
-  `note` VARCHAR(100),
+  `status` smallint NOT NULL DEFAULT 1, -- Trạng thái của vòng quay (ví dụ: 1 có thể là hoạt động, 0 là không hoạt động).
+  `note` VARCHAR(100), -- Ghi chú cho vòng quay này.
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `account_id` VARCHAR(36) NOT NULL,
-  `reward_status` smallint NOT NULL DEFAULT 1,
-  `transaction_id` VARCHAR(36),
-  `reward` integer NOT NULL DEFAULT 0,
-  `reward_at` timestamp(3),
-  `reward_title` VARCHAR(150),
-  `type` smallint,
-  `is_approved` TINYINT(1) DEFAULT 1,
-  `luckyWheelHistories` TEXT
+  `account_id` VARCHAR(36) NOT NULL, -- Mã định danh của tài khoản người dùng liên quan đến vòng quay này.
+  `reward_status` smallint NOT NULL DEFAULT 1, -- Trạng thái nhận thưởng (ví dụ: 1 là đã nhận, 0 là chưa nhận).
+  `transaction_id` VARCHAR(36), -- Mã định danh của giao dịch liên quan đến phần thưởng từ vòng quay.
+  `reward` integer NOT NULL DEFAULT 0, -- Giá trị phần thưởng nhận được từ vòng quay.
+  `reward_at` timestamp(3), -- Thời điểm phần thưởng được nhận.
+  `reward_title` VARCHAR(150), -- Tiêu đề mô tả phần thưởng
+  `type` smallint, -- Loại vòng quay hoặc phần thưởng.
+  `is_approved` TINYINT(1) DEFAULT 1, -- Xác nhận việc nhận thưởng (1 là đã phê duyệt, 0 là chưa phê duyệt).
+  `luckyWheelHistories` TEXT -- Lịch sử các hoạt động liên quan đến vòng quay này, lưu dưới dạng văn bản.
 );
 
 CREATE TABLE `account_daily_lucky_wheel_history` (
@@ -136,17 +138,19 @@ CREATE TABLE `account_partner_commission` (
   `paid` integer NOT NULL DEFAULT 0
 );
 
+-- quản lý việc giới thiệu của người dùng
 CREATE TABLE `account_referral` (
-  `referral_from` VARCHAR(36) NOT NULL,
-  `referral_by` VARCHAR(36) NOT NULL,
+  `referral_from` VARCHAR(36) NOT NULL, -- ID của tài khoản được người khác giới thiệu (người nhận giới thiệu).
+  `referral_by` VARCHAR(36) NOT NULL, -- ID của tài khoản giới thiệu người khác (người giới thiệu).
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-  PRIMARY KEY (`referral_from`, `referral_by`)
+  PRIMARY KEY (`referral_from`, `referral_by`) -- Khóa chính kết hợp giữa referral_from và referral_by để đảm bảo mỗi mối quan hệ giới thiệu là duy nhất.
 );
 
+-- thống kê việc giới thiệu của người dùng
 CREATE TABLE `account_referral_stats` (
-  `account_id` VARCHAR(36) PRIMARY KEY NOT NULL,
-  `total_referrals` integer NOT NULL DEFAULT 0,
-  `total_kyc` integer NOT NULL DEFAULT 0,
+  `account_id` VARCHAR(36) PRIMARY KEY NOT NULL, -- ID của tài khoản (khóa chính).
+  `total_referrals` integer NOT NULL DEFAULT 0, -- Tổng số lần người dùng đã giới thiệu người khác.
+  `total_kyc` integer NOT NULL DEFAULT 0, -- Tổng số người dùng được giới thiệu đã xác minh danh tính (KYC).
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3)
 );
@@ -170,8 +174,20 @@ CREATE TABLE `account_setting` (
   `language` ENUM('VI', 'EN') NOT NULL DEFAULT 'VI'
 );
 
+-- Bảng này được dùng để lưu trữ tóm tắt về các hoạt động của tài khoản trong một khoảng thời gian nhất định (ngày, tuần, tháng, năm)
+-- Đếm số lần đăng nhập của người dùng trong mỗi ngày
+-- Ghi nhận số phần thưởng mà người dùng nhận được trong mỗi tuần hoặc tháng
+
+/*
+--> Lưu lại số lần đăng nhập cũng như là số lần nhận thưởng khi mà tạo account.
+--> bảng Summary này để theo dõi hành vi người dùng, đưa ra được báo cáo thống kê lượng lớn dữ liệu người dùng
+--> Có được dữ liệu về tần suất hoạt động giúp quản trị viên có được cái nhìn tổng quan.
+--> Nếu 1 chiến dịch quảng cáo -> khiến cho lượng user tạo tài khoản nhiều trong 1 khoảng thời gian chạy chiến dịch -> chiến dịch đó thành công.
+--> Check xem người dùng nào ít hoạt động --> triển khai chiến lược cho người dùng quay lại
+--> Chỉ số này giúp đưa ra được số liệu thực tế và giúp cho đội ngũ quản lý đưa chiến lược phù hợp.
+*/
 CREATE TABLE `account_summary` (
-  `value` integer NOT NULL DEFAULT 0,
+  `value` integer NOT NULL DEFAULT 0, -- số lượng sự kiện hoặc giá trị tổng liên quan đến tài khoản trong một khoảng thời gian nhất định
   `day` smallint NOT NULL,
   `week` smallint NOT NULL,
   `month` smallint NOT NULL,
@@ -248,62 +264,84 @@ CREATE TABLE `campaign_category` (
   `campaign_id` VARCHAR(36) NOT NULL
 );
 
+/*
+1. cashback_available là số tiền cashback khả dụng hiện tại của tài khoản. 
+2. Mọi thay đổi của nó đều được ghi lại trong bảng cashback_available_histories.
+3. Khi người dùng hoặc hệ thống thực hiện giao dịch hoàn tiền, các giao dịch này sẽ được lưu lại trong bảng cashback_transaction hoặc cashback_transaction_broker.
+4. cashback_summary giúp tổng kết thông tin về các khoản cashback đã diễn ra trong ngày, tuần, tháng và năm để phục vụ việc báo cáo và phân tích.
+*/
+
+-- Bảng quản lý số dư hiện có của mỗi tài khoản và chi tiết về trạng thái, loại tiền tệ cũng như lý do của mỗi khoản.
 CREATE TABLE `cashback_available` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `amount` numeric(65,30) NOT NULL DEFAULT 0,
-  `reason` VARCHAR(255),
+  `amount` numeric(65,30) NOT NULL DEFAULT 0, -- Số tiền khả dụng
+  `reason` VARCHAR(255), --  Lý do liên quan đến cashback, mô tả chi tiết về lý do có số tiền này
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `currency_id` VARCHAR(36) NOT NULL,
-  `account_id` VARCHAR(36) NOT NULL,
-  `status` smallint NOT NULL DEFAULT 1,
-  `version` integer NOT NULL DEFAULT 1
+  `currency_id` VARCHAR(36) NOT NULL, -- Tham chiếu đến ID của loại tiền tệ
+  `account_id` VARCHAR(36) NOT NULL, -- Tham chiếu đến ID của tài khoản 
+  `status` smallint NOT NULL DEFAULT 1, -- Trạng thái của cashback (1: hoạt động, 0: không hoạt động).
+  `version` integer NOT NULL DEFAULT 1 -- Phiên bản của bản ghi, dùng để kiểm soát phiên bản và cập nhật dữ liệu
 );
 
+
+-- Bảng này lưu lịch sử thay đổi của cashback_available. Mỗi khi số dư cashback thay đổi, lịch sử của nó sẽ được lưu vào bảng này
 CREATE TABLE `cashback_available_histories` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `old_balance` numeric(65,30) NOT NULL DEFAULT 0,
-  `amount` numeric(65,30) NOT NULL DEFAULT 0,
-  `type` VARCHAR(1),
-  `last_update` timestamp(3),
+  `old_balance` numeric(65,30) NOT NULL DEFAULT 0, -- Đây là số dư trước khi có sự thay đổi. Giá trị này giúp biết số dư của người dùng trước khi giao dịch xảy ra.
+  `amount` numeric(65,30) NOT NULL DEFAULT 0, -- Đây là số tiền thay đổi của số dư, Điều này cho phép hệ thống biết cụ thể số tiền đã thay đổi trong giao dịch.
+  `type` VARCHAR(1), -- Loại thay đổi của giao dịch, ví dụ: tăng hoặc giảm số dư. Giá trị này có thể là một mã để chỉ định loại giao dịch cụ thể 
+  `last_update` timestamp(3), -- Thời gian thay đổi cuối cùng, giúp theo dõi khi nào số dư đã được cập nhật lần gần nhất.
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `ca_id` VARCHAR(36) NOT NULL
+  `ca_id` VARCHAR(36) NOT NULL -- Đây là khóa ngoại, liên kết với bảng cashback_available. Mục đích là để ghi nhận thay đổi này thuộc về số dư cashback của tài khoản nào.
 );
 
+/*
+  Bảng cashback_summary được sử dụng để lưu trữ thông tin tổng quan về các giao dịch,
+  theo ngày, tuần, tháng và năm, giúp theo dõi chi tiết tổng số tiền hoàn lại trong từng khoảng thời gian
+*/
+
 CREATE TABLE `cashback_summary` (
-  `value` integer NOT NULL DEFAULT 0,
-  `amount` numeric(65,30) NOT NULL DEFAULT 0,
-  `status` integer NOT NULL,
-  `day` smallint NOT NULL,
+  `value` integer NOT NULL DEFAULT 0, -- Số lượng giao dịch hoàn tiền trong một thời điểm nhất định (ngày, tuần, tháng, năm)
+  `amount` numeric(65,30) NOT NULL DEFAULT 0, -- Tổng số tiền đã hoàn trả trong một thời điểm nhất định
+  `status` integer NOT NULL, -- Trạng thái của bản ghi hoàn tiền (có thể là đã xử lý, đang chờ xử lý, v.v.)
+  `day` smallint NOT NULL, -- Xác định thời điểm của bản ghi (theo ngày, tuần, tháng và năm) để dễ dàng phân loại.
   `week` smallint NOT NULL,
   `month` smallint NOT NULL,
   `year` integer NOT NULL,
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `type` integer NOT NULL DEFAULT 0
+  `type` integer NOT NULL DEFAULT 0 -- Kiểu hoàn tiền, dùng để phân biệt các loại hoàn tiền khác nhau
 );
+
+/*
+  1. Được sử dụng để lưu trữ thông tin chi tiết về từng giao dịch hoàn tiền
+  2. Đây là cách để theo dõi các hoạt động liên quan đến hoàn tiền giữa các tài khoản, 
+  3. đồng thời lưu giữ thông tin về các chương trình hoặc chiến dịch cụ thể
+  4. Ghi nhận mọi thông tin liên quan như người gửi, người nhận, loại hoàn tiền, thời gian và trạng thái của giao dịch
+*/
 
 CREATE TABLE `cashback_transaction` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `type` integer NOT NULL DEFAULT 1,
-  `amount` numeric(65,30) NOT NULL DEFAULT 0,
-  `fee` integer DEFAULT 0,
-  `status` smallint NOT NULL DEFAULT 1,
-  `description` VARCHAR(255),
+  `type` integer NOT NULL DEFAULT 1, -- Loại giao dịch
+  `amount` numeric(65,30) NOT NULL DEFAULT 0, --  Số tiền được giao dịch
+  `fee` integer DEFAULT 0, --  Phí giao dịch
+  `status` smallint NOT NULL DEFAULT 1, -- Trạng thái của giao dịch
+  `description` VARCHAR(255), -- Mô tả chi tiết về giao dịch, ví dụ "Hoàn tiền từ giới thiệu bạn bè."
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `vndc_json` TEXT,
-  `access_trade_id` VARCHAR(50),
-  `access_trade_json` TEXT,
-  `currency_id` VARCHAR(36) NOT NULL,
-  `campaign_id` VARCHAR(36),
-  `sender_id` VARCHAR(36),
+  `vndc_json` TEXT, -- Thông tin chi tiết về giao dịch liên quan đến VNDC 
+  `access_trade_id` VARCHAR(50), -- ID của giao dịch liên quan đến AccessTrade
+  `access_trade_json` TEXT, -- Chi tiết về giao dịch AccessTrade (nếu có).
+  `currency_id` VARCHAR(36) NOT NULL, -- ID của loại tiền tệ được sử dụng trong giao dịch
+  `campaign_id` VARCHAR(36), -- ID của chiến dịch liên quan đến giao dịch
+  `sender_id` VARCHAR(36), -- ID của người gửi và người nhận trong giao dịch
   `receiver_id` VARCHAR(36),
-  `title` VARCHAR(150),
-  `cbHistories` TEXT,
-  `old_balance` numeric(65,30) NOT NULL DEFAULT 0,
-  `action_type` integer NOT NULL
+  `title` VARCHAR(150), -- Tiêu đề của giao dịch
+  `cbHistories` TEXT, -- Lịch sử của giao dịch, có thể lưu các thay đổi trạng thái, mô tả chi tiết dưới dạng văn bản hoặc JSON.
+  `old_balance` numeric(65,30) NOT NULL DEFAULT 0, -- Số dư cũ của người nhận trước khi có giao dịch này
+  `action_type` integer NOT NULL -- Loại hành động của giao dịch
 );
 
 CREATE TABLE `cashback_transaction_broker` (
@@ -510,14 +548,18 @@ CREATE TABLE `config_ads` (
   `status` smallint NOT NULL DEFAULT 0
 );
 
+/*
+  1. Sử dụng để lưu trữ cấu hình hoa hồng cho các chương trình giới thiệu hoặc thưởng khác
+  2. Bảng này giúp quản lý các thông tin về mức hoa hồng và điều kiện để nhận hoa hồng trong các tình huống khác nhau.
+*/
 CREATE TABLE `config_commission` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `referral_by` integer NOT NULL DEFAULT 0,
-  `referral_from` integer NOT NULL DEFAULT 0,
-  `non_referral` integer NOT NULL DEFAULT 0,
-  `need_kyc` TINYINT(1) NOT NULL DEFAULT 1
+  `referral_by` integer NOT NULL DEFAULT 0, -- Hoa hồng dành cho người giới thiệu - 100 SAT
+  `referral_from` integer NOT NULL DEFAULT 0, -- Hoa hồng dành cho người được giới thiệu -- 1500 SAT
+  `non_referral` integer NOT NULL DEFAULT 0, -- Mức thưởng cho người không có giới thiệu -- 0 SAT
+  `need_kyc` TINYINT(1) NOT NULL DEFAULT 1 -- Điều kiện xác minh danh tính (KYC). Nếu giá trị là 1, nghĩa là người dùng cần phải hoàn thành xác minh danh tính (KYC) để nhận được hoa hồng.
 );
 
 CREATE TABLE `config_daily_lucky_wheel` (
@@ -595,20 +637,21 @@ CREATE TABLE `currency_limit_setting` (
   `updated_at` timestamp(3)
 );
 
+-- lưu trữ thông tin về các loại tiền tệ trong hệ thống
 CREATE TABLE `currency_master` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `code` VARCHAR(10) NOT NULL,
-  `name` VARCHAR(50) NOT NULL,
-  `status` smallint NOT NULL DEFAULT 1,
+  `code` VARCHAR(10) NOT NULL, -- Mã tiền tệ, ví dụ "USD".
+  `name` VARCHAR(50) NOT NULL, -- Tên của loại tiền tệ
+  `status` smallint NOT NULL DEFAULT 1, -- Trạng thái hoạt động của tiền tệ (1: hoạt động, 0: không hoạt động).
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `exchange_wallet_editable` TINYINT(1) NOT NULL DEFAULT 0,
-  `is_calculate_decimals` TINYINT(1) NOT NULL DEFAULT 0,
-  `exchangeable` TINYINT(1) NOT NULL DEFAULT 0,
-  `fixed_decimal` VARCHAR(10),
-  `visible` TINYINT(1) NOT NULL DEFAULT 1,
-  `withdrawable` TINYINT(1) NOT NULL DEFAULT 0,
-  `icon` TEXT
+  `exchange_wallet_editable` TINYINT(1) NOT NULL DEFAULT 0, -- Cho phép chỉnh sửa trong ví trao đổi (0: không, 1: có).
+  `is_calculate_decimals` TINYINT(1) NOT NULL DEFAULT 0, -- Cho phép tính toán với số thập phân (0: không, 1: có).
+  `exchangeable` TINYINT(1) NOT NULL DEFAULT 0, -- Tiền tệ này có thể trao đổi hay không (0: không, 1: có).
+  `fixed_decimal` VARCHAR(10), -- Độ chính xác số thập phân cố định cho tiền tệ (nếu có).
+  `visible` TINYINT(1) NOT NULL DEFAULT 1, -- Hiển thị tiền tệ này cho người dùng (0: không, 1: có).
+  `withdrawable` TINYINT(1) NOT NULL DEFAULT 0, -- Tiền tệ này có thể rút ra được hay không (0: không, 1: có).
+  `icon` TEXT -- Đường dẫn đến biểu tượng của loại tiền tệ.
 );              
 
 CREATE TABLE `event` (
@@ -684,17 +727,19 @@ CREATE TABLE `kai_transaction` (
   `updated_at` timestamp(3)
 );
 
+
+-- Bảng này giúp quản lý việc gửi và theo dõi các thông báo gửi đến từng người dùng một cách rõ ràng và có tổ chức
 CREATE TABLE `notification` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `type` smallint NOT NULL,
-  `icon` VARCHAR(255),
-  `seen` TINYINT(1) NOT NULL DEFAULT 0,
-  `title` VARCHAR(255) NOT NULL,
-  `description` VARCHAR(500) NOT NULL,
-  `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-  `html_content` text,
-  `ref` VARCHAR(36),
-  `account_id` VARCHAR(36) NOT NULL
+  `type` smallint NOT NULL, --  Kiểu của thông báo, sử dụng số nguyên nhỏ (smallint) để xác định loại thông báo (ví dụ: 1 - cảnh báo, 2 - khuyến mãi, 3 - cập nhật, v.v.).
+  `icon` VARCHAR(255), -- Đường dẫn hoặc ký tự đại diện cho biểu tượng của thông báo, giúp hiển thị phù hợp với nội dung.
+  `seen` TINYINT(1) NOT NULL DEFAULT 0, -- Trạng thái đã xem của thông báo. Nếu false, nghĩa là người dùng chưa xem thông báo; true là đã xem.
+  `title` VARCHAR(255) NOT NULL, -- Tiêu đề của thông báo, là đoạn văn bản ngắn mô tả nội dung chính.
+  `description` VARCHAR(500) NOT NULL, -- Nội dung chi tiết của thông báo
+  `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP), -- Thời gian tạo thông báo
+  `html_content` text, -- Nội dung HTML tùy chỉnh để hiển thị thông báo với định dạng phong phú
+  `ref` VARCHAR(36), -- Mã định danh để tham chiếu đến một đối tượng liên quan, ví dụ như ID của một giao dịch hoặc một đối tượng khác.
+  `account_id` VARCHAR(36) NOT NULL -- Mã định danh của tài khoản người dùng nhận thông báo.
 );
 
 CREATE TABLE `partner_transaction` (

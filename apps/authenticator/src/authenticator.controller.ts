@@ -67,4 +67,9 @@ export class AuthenticatorController {
     delete account.passcode;
     return account;
   }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT)
+  async saveAccount(@Payload() input: Account, @Ack() _: RmqContext) {
+    return this._service.saveAccount(input);
+  }
 }
