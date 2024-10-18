@@ -25,6 +25,7 @@ import { JwtStrategy } from './jwt/jwt.strategy';
 import { LoggerMiddleware } from './middleware/logger.middleware';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { SessionController } from './session.controller';
+import walletQueueProvider from '@app/common/providers/queues/wallet-queue.provider';
 @Module({
   imports: [
     HttpModule,
@@ -53,6 +54,7 @@ import { SessionController } from './session.controller';
     JwtStrategy,
     AuthService,
     authenticatorQueueProvider,
+    walletQueueProvider,
     { provide: APP_GUARD, useClass: JwtRolesAuthGuard },
   ], // Đây là các provider được khai báo trong module.
 })

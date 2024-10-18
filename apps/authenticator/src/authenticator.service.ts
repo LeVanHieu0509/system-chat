@@ -7,17 +7,29 @@ import {
   MESSAGE_PATTERN,
   NOTIFICATION_TYPE,
   OTP_TYPE,
+  QUEUES,
   REWARD_NON_REFERRAL,
   STATUS,
 } from '@app/common/constants';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
 import { Prisma, PrismaPromise } from '@prisma/client';
 import { isEmail, isPhoneNumber } from 'class-validator';
 import { CachingService } from 'libs/caching/src';
-import { REFERRAL_CODE_LENGTH } from 'libs/config';
+import {
+  AMOUNT_REFERRAL_BY,
+  AMOUNT_REFERRAL_FROM,
+  REFERRAL_CODE_LENGTH,
+} from 'libs/config';
 import {
   Account,
+  AccountReferral,
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
@@ -29,6 +41,7 @@ import {
 } from 'libs/notification/src/notification.description';
 import { MainRepo } from 'libs/repositories/main.repo';
 import { UtilsService } from 'libs/utils/src';
+import { firstValueFrom } from 'rxjs';
 
 const HiddenChar = '*********';
 const REASON = {
@@ -44,10 +57,222 @@ const REASON = {
 export class AuthenticatorService {
   private readonly _logger: Logger = new Logger(AuthenticatorService.name);
 
-  constructor(private readonly _repo: MainRepo) {} // @Inject(QUEUES.WALLET) private readonly _clientWallet: ClientProxy,
+  constructor(
+    @Inject(QUEUES.WALLET) private readonly _clientWallet: ClientProxy,
+    private readonly _repo: MainRepo,
+  ) {}
 
   getHello(): string {
     return 'Hello World!';
+  }
+
+  async signInWithGoogle(accessToken: string) {
+    // handle third party to get info from google.
+    const googleAccount: Account = {
+      email: UtilsService.getInstance().randomEmail(), //UtilsService.getInstance().randomEmail(),
+      emailVerified: true,
+      googleId: UtilsService.getInstance().randomToken(12), // UtilsService.getInstance().randomToken(12),
+      avatar: 'https://levanhieu@',
+      fullName: 'Le Van hieu',
+    };
+
+    if (!googleAccount) {
+      throw new BadRequestException([
+        {
+          field: 'accessToken',
+          message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID,
+        },
+      ]);
+    }
+
+    return this.processSignInWithThirdParty(googleAccount);
+  }
+
+  private async processSignInWithThirdParty(newAccount: Account) {
+    this._logger.log(
+      `processSignInWithThirdParty newAccount: ${JSON.stringify(newAccount)}`,
+    );
+
+    // Token này sẽ dùng để xác thực phiên đăng nhập của người dùng.
+    const token = UtilsService.getInstance().randomToken(24);
+    const { appleId, googleId, facebookId } = newAccount;
+
+    // found account in database
+    const account = await this._repo.getAccount().findFirst({
+      where: {
+        OR: [{ email: newAccount.email }, { appleId, facebookId, googleId }],
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        avatar: true,
+        emailVerified: true,
+        status: true,
+      },
+    });
+
+    // Nếu tồn tại, chỉ lấy các thông tin như id, email, phone, v.v.
+    if (account) {
+      // Lưu tài khoản vào cache với token mới tạo, thời gian tồn tại là 600 giây (10 phút).
+      // Điều này giúp quá trình xác thực trong lần đăng nhập tiếp theo nhanh hơn mà không cần phải truy vấn cơ sở dữ liệu.
+      CachingService.getInstance().set(
+        MESSAGE_PATTERN.AUTH.SIGN_IN_VERIFY_PASSCODE + token,
+        account,
+        600,
+      );
+
+      /*
+        Nếu email đã được xác minh (emailVerified), thì bỏ qua thông tin email.
+        Email của người dùng đã được xác thực và không cần thay đổi.
+        Giúp tránh trường hợp vô tình ghi đè hoặc làm mất đi email đã được xác minh.
+        Tránh hệ thống có thể ghi đè lên email đã được xác minh, và có thể làm ảnh hưởng tới tính nhất quán và bảo mật của hệ thống.
+
+        Việc đặt newAccount.email = undefined là một cách giúp bảo vệ thông tin email của người dùng đã được xác minh, 
+        tránh cập nhật dư thừa và giảm thiểu rủi ro về bảo mật. 
+        Điều này đảm bảo tính nhất quán và an toàn cho dữ liệu người dùng trong hệ thống.
+     */
+
+      if (account.emailVerified) newAccount.email = undefined;
+
+      // Sử dụng setTimeout để cập nhật các thông tin mới vào tài khoản trong cơ sở dữ liệu sau 100 ms.
+      // Điều này nhằm tránh chờ đợi cập nhật khi trả về kết quả.
+
+      /*
+        1. Kết quả sẽ được trả về cho người dùng ngay lập tức, giúp giảm thời gian chờ đợi cho người dùng
+        2. Mục đích của việc dùng setTimeout là để đẩy việc cập nhật cơ sở dữ liệu ra khỏi luồng chính của quá trình xử lý.
+        3. Giảm thiểu tình trạng "thắt cổ chai" khi có nhiều yêu cầu đồng thời
+        4. Tăng tốc độ phản hồi, tối ưu hóa hiệu suất xử lý, giảm tải cho cơ sở dữ liệu, và đảm bảo trải nghiệm người dùng mượt mà hơn
+      */
+      setTimeout(async () => {
+        await this._repo
+          .getAccount()
+          .update({ where: { id: account.id }, data: newAccount });
+      }, 100);
+
+      return { ...account, signInToken: token, isNewUser: false };
+    } else {
+      CachingService.getInstance().set(
+        MESSAGE_PATTERN.AUTH.SIGN_UP_VERIFY_PASSCODE + token,
+        newAccount,
+        600,
+      );
+      return { signUpToken: token, isNewUser: true };
+    }
+  }
+
+  private async generateReferral() {
+    const referralCode =
+      UtilsService.getInstance().randomAlphanumeric(REFERRAL_CODE_LENGTH);
+    const exit = await this._repo
+      .getAccount()
+      .count({ where: { referralCode } });
+    if (exit) return await this.generateReferral();
+    return referralCode;
+  }
+
+  async validateSignUp(input: SignupRequestDto) {
+    this._logger.log(`validateSignUp input: ${JSON.stringify(input)}`);
+
+    const { token, referralBy, passcode, ...accountInput } = input;
+    const account = await CachingService.getInstance().get<Account>(
+      MESSAGE_PATTERN.AUTH.SIGN_UP_VERIFY_PASSCODE + token,
+    );
+
+    Object.assign(account, accountInput);
+
+    // validate referral
+    let referralById = undefined;
+    if (referralBy) {
+      const where: Prisma.AccountWhereInput = {};
+      if (isPhoneNumber(referralBy, 'VN') && referralBy !== account.phone) {
+        where.phone = UtilsService.getInstance().toIntlPhone(referralBy);
+      } else if (isEmail(referralBy)) {
+        where.email = referralBy;
+      } else {
+        where.referralCode = referralBy;
+      }
+      const accountReferral = await this._repo.getAccount().findFirst({
+        where,
+        select: { id: true },
+      });
+      if (!accountReferral) {
+        throw new BadRequestException([
+          {
+            field: 'referralBy',
+            message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID,
+          },
+        ]);
+      }
+      referralById = accountReferral.id;
+    }
+    if (account.phone) {
+      account.phone = UtilsService.getInstance().toIntlPhone(account.phone);
+      const existAccount = await this._repo
+        .getAccount()
+        .count({ where: { phone: account.phone } });
+
+      if (existAccount) {
+        throw new BadRequestException([
+          { field: 'phone', message: VALIDATE_MESSAGE.ACCOUNT.PHONE_INVALID },
+        ]);
+      }
+    }
+
+    if (account.email) {
+      const exist = await this._repo
+        .getAccount()
+        .count({ where: { email: account.email } });
+      if (exist) {
+        throw new BadRequestException([
+          { field: 'email', message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_EXIST },
+        ]);
+      }
+    }
+    account.status = STATUS.ACTIVE;
+    // account.referralCode = await this.generateReferral();
+    account.passcode = UtilsService.getInstance().hashValue(passcode);
+    account.histories = {
+      histories: [
+        {
+          reason: COMMON_NOTE_STATUS.CREATE_ACCOUNT_SUCCESS,
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    };
+
+    account.id = (
+      await this._repo
+        .getAccount()
+        .create({ data: account, select: { id: true } })
+    ).id;
+    if (referralById) account.referralBy = referralById;
+
+    return account;
+  }
+
+  async verifyPasscodeSignIn(id: string, passcode: string) {
+    this._logger.log(`verifyPasscodeSignIn id: ${id} passcode: ${passcode}`);
+
+    const account = await this._repo.getAccount().findUnique({
+      where: { id },
+      select: {
+        id: true,
+        phone: true,
+        email: true,
+        passcode: true,
+        status: true,
+      },
+    });
+    if (
+      account &&
+      UtilsService.getInstance().compareHash(passcode, account.passcode)
+    ) {
+      account.passcode = undefined;
+      return account;
+    }
+    return null;
   }
 
   async processOTP(input: OTPRequestDto) {
@@ -243,10 +468,10 @@ export class AuthenticatorService {
     if (referralBy) {
       // Hàm này có nhiệm vụ tạo một mối liên kết (liên hệ) giữa người giới thiệu (referralBy) và tài khoản mới (referralFrom)
       // Điều này thường dùng để ghi nhận và quản lý các chương trình thưởng cho việc giới thiệu người dùng mới
-      // this.insertAccountReferral(
-      //   { referralBy, referralFrom: account.id },
-      //   bulkOps,
-      // );
+      this.insertAccountReferral(
+        { referralBy, referralFrom: account.id },
+        bulkOps,
+      );
     } else {
       // Hàm này có nhiệm vụ thực hiện các bước thưởng cho tài khoản mới,
       // chẳng hạn như cung cấp một phần thưởng chào mừng,
@@ -254,191 +479,6 @@ export class AuthenticatorService {
       this.rewardNewAccount(account.id, bulkOps);
     }
     return true;
-  }
-
-  async signInWithGoogle(accessToken: string) {
-    // handle third party to get info from google.
-    const googleAccount: Account = {
-      email: UtilsService.getInstance().randomEmail(),
-      emailVerified: true,
-      googleId: UtilsService.getInstance().randomToken(12),
-      avatar: 'https://levanhieu@',
-      fullName: 'Le Van hieu',
-    };
-
-    if (!googleAccount) {
-      throw new BadRequestException([
-        {
-          field: 'accessToken',
-          message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID,
-        },
-      ]);
-    }
-
-    return this.processSignInWithThirdParty(googleAccount);
-  }
-
-  private async processSignInWithThirdParty(newAccount: Account) {
-    this._logger.log(
-      `processSignInWithThirdParty newAccount: ${JSON.stringify(newAccount)}`,
-    );
-
-    // Token này sẽ dùng để xác thực phiên đăng nhập của người dùng.
-    const token = UtilsService.getInstance().randomToken(24);
-    const { appleId, googleId, facebookId } = newAccount;
-
-    // found account in database
-    const account = await this._repo.getAccount().findFirst({
-      where: {
-        OR: [{ email: newAccount.email }, { appleId, facebookId, googleId }],
-      },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        fullName: true,
-        avatar: true,
-        emailVerified: true,
-        status: true,
-      },
-    });
-
-    // Nếu tồn tại, chỉ lấy các thông tin như id, email, phone, v.v.
-    if (account) {
-      // Lưu tài khoản vào cache với token mới tạo, thời gian tồn tại là 600 giây (10 phút).
-      // Điều này giúp quá trình xác thực trong lần đăng nhập tiếp theo nhanh hơn mà không cần phải truy vấn cơ sở dữ liệu.
-      CachingService.getInstance().set(
-        MESSAGE_PATTERN.AUTH.SIGN_IN_VERIFY_PASSCODE + token,
-        account,
-        600,
-      );
-
-      /*
-        Nếu email đã được xác minh (emailVerified), thì bỏ qua thông tin email.
-        Email của người dùng đã được xác thực và không cần thay đổi.
-        Giúp tránh trường hợp vô tình ghi đè hoặc làm mất đi email đã được xác minh.
-        Tránh hệ thống có thể ghi đè lên email đã được xác minh, và có thể làm ảnh hưởng tới tính nhất quán và bảo mật của hệ thống.
-
-        Việc đặt newAccount.email = undefined là một cách giúp bảo vệ thông tin email của người dùng đã được xác minh, 
-        tránh cập nhật dư thừa và giảm thiểu rủi ro về bảo mật. 
-        Điều này đảm bảo tính nhất quán và an toàn cho dữ liệu người dùng trong hệ thống.
-     */
-
-      if (account.emailVerified) newAccount.email = undefined;
-
-      // Sử dụng setTimeout để cập nhật các thông tin mới vào tài khoản trong cơ sở dữ liệu sau 100 ms.
-      // Điều này nhằm tránh chờ đợi cập nhật khi trả về kết quả.
-
-      /*
-        1. Kết quả sẽ được trả về cho người dùng ngay lập tức, giúp giảm thời gian chờ đợi cho người dùng
-        2. Mục đích của việc dùng setTimeout là để đẩy việc cập nhật cơ sở dữ liệu ra khỏi luồng chính của quá trình xử lý.
-        3. Giảm thiểu tình trạng "thắt cổ chai" khi có nhiều yêu cầu đồng thời
-        4. Tăng tốc độ phản hồi, tối ưu hóa hiệu suất xử lý, giảm tải cho cơ sở dữ liệu, và đảm bảo trải nghiệm người dùng mượt mà hơn
-      */
-      setTimeout(async () => {
-        await this._repo
-          .getAccount()
-          .update({ where: { id: account.id }, data: newAccount });
-      }, 100);
-
-      return { ...account, signInToken: token, isNewUser: false };
-    } else {
-      CachingService.getInstance().set(
-        MESSAGE_PATTERN.AUTH.SIGN_UP_VERIFY_PASSCODE + token,
-        newAccount,
-        600,
-      );
-      return { signUpToken: token, isNewUser: true };
-    }
-  }
-
-  private async generateReferral() {
-    const referralCode =
-      UtilsService.getInstance().randomAlphanumeric(REFERRAL_CODE_LENGTH);
-    const exit = await this._repo
-      .getAccount()
-      .count({ where: { referralCode } });
-    if (exit) return await this.generateReferral();
-    return referralCode;
-  }
-
-  async validateSignUp(input: SignupRequestDto) {
-    this._logger.log(`validateSignUp input: ${JSON.stringify(input)}`);
-
-    const { token, referralBy, passcode, ...accountInput } = input;
-    const account = await CachingService.getInstance().get<Account>(
-      MESSAGE_PATTERN.AUTH.SIGN_UP_VERIFY_PASSCODE + token,
-    );
-
-    Object.assign(account, accountInput);
-
-    // validate referral
-    let referralById = undefined;
-    if (referralBy) {
-      const where: Prisma.AccountWhereInput = {};
-      if (isPhoneNumber(referralBy, 'VN') && referralBy !== account.phone) {
-        where.phone = UtilsService.getInstance().toIntlPhone(referralBy);
-      } else if (isEmail(referralBy)) {
-        where.email = referralBy;
-      } else {
-        where.referralCode = referralBy;
-      }
-      const accountReferral = await this._repo.getAccount().findFirst({
-        where,
-        select: { id: true },
-      });
-      if (!accountReferral) {
-        throw new BadRequestException([
-          {
-            field: 'referralBy',
-            message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID,
-          },
-        ]);
-      }
-      referralById = accountReferral.id;
-    }
-    if (account.phone) {
-      account.phone = UtilsService.getInstance().toIntlPhone(account.phone);
-      const existAccount = await this._repo
-        .getAccount()
-        .count({ where: { phone: account.phone } });
-
-      if (existAccount) {
-        throw new BadRequestException([
-          { field: 'phone', message: VALIDATE_MESSAGE.ACCOUNT.PHONE_INVALID },
-        ]);
-      }
-    }
-
-    if (account.email) {
-      const exist = await this._repo
-        .getAccount()
-        .count({ where: { email: account.email } });
-      if (exist) {
-        throw new BadRequestException([
-          { field: 'email', message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_EXIST },
-        ]);
-      }
-    }
-    account.status = STATUS.ACTIVE;
-    // account.referralCode = await this.generateReferral();
-    account.passcode = UtilsService.getInstance().hashValue(passcode);
-    account.histories = {
-      histories: [
-        {
-          reason: COMMON_NOTE_STATUS.CREATE_ACCOUNT_SUCCESS,
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-    };
-
-    account.id = (
-      await this._repo
-        .getAccount()
-        .create({ data: account, select: { id: true } })
-    ).id;
-    if (referralById) account.referralBy = referralById;
-    return account;
   }
 
   // nó thực hiện việc cấp thưởng cho một tài khoản mới mà không có người giới thiệu
@@ -552,9 +592,25 @@ export class AuthenticatorService {
 
       // Nếu một CbTrans được tạo thì sẽ thực hiện tăng giảm số tiền thông qua service wallet.
 
-      // await this._clientWallet.send(MESSAGE_PATTERN.WALLET.NONE_ACCOUNT_REFERRAL, payload).toPromise();
+      await firstValueFrom(
+        this._clientWallet.send(
+          MESSAGE_PATTERN.WALLET.NONE_ACCOUNT_REFERRAL,
+          payload,
+        ),
+      );
     } else {
+      const payload = { cbTransaction, version: 1 };
+      this._logger.log(
+        `rewardNewAccount --> payload: ${JSON.stringify(payload)}`,
+      );
+
       // Thêm thao tác tạo giao dịch cashback (cbTransaction) vào bulkOps
+      await firstValueFrom(
+        this._clientWallet.send(
+          MESSAGE_PATTERN.WALLET.NONE_ACCOUNT_REFERRAL,
+          payload,
+        ),
+      );
 
       bulkOps.push(this._repo.getCbTrans().create({ data: cbTransaction }));
 
@@ -566,27 +622,179 @@ export class AuthenticatorService {
     // this._notification.sendNotifyNewAccount([accountId], des, true);
   }
 
-  async verifyPasscodeSignIn(id: string, passcode: string) {
-    this._logger.log(`verifyPasscodeSignIn id: ${id} passcode: ${passcode}`);
+  private async insertAccountReferral(
+    { referralBy, referralFrom }: AccountReferral,
+    bulkOps: PrismaPromise<any>[],
+  ): Promise<void> {
+    // 1. get info account and config setting in database
+    const [referralByInfo, referralFromInfo, config, currency] =
+      await Promise.all([
+        this._repo.getAccount().findUnique({
+          where: { id: referralBy },
+          select: {
+            fullName: true,
+            phone: true,
+            deviceToken: true,
+            cbAvailable: { select: { currencyId: true, version: true } },
+          },
+        }),
+        this._repo.getAccount().findUnique({
+          where: { id: referralFrom },
+          select: {
+            fullName: true,
+            phone: true,
+            cbAvailable: { select: { currencyId: true, version: true } },
+          },
+        }),
+        this._repo.getConfigCommission().findFirst({
+          select: { referralFrom: true, referralBy: true, needKyc: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        this._repo
+          .getCurrency()
+          .findUnique({ where: { code: CURRENCY_CODE.SATOSHI } }),
+      ]);
 
-    const account = await this._repo.getAccount().findUnique({
-      where: { id },
-      select: {
-        id: true,
-        phone: true,
-        email: true,
-        passcode: true,
-        status: true,
+    const { id: currencyId, code: coinCode } = currency;
+    const amountFrom = config ? config.referralFrom : AMOUNT_REFERRAL_FROM;
+    const amountBy = config ? config.referralBy : AMOUNT_REFERRAL_BY;
+
+    // 2. create transaction to RefBy and refFrom
+    const cbTransactionFrom: Prisma.CashbackTransactionUncheckedCreateInput = {
+      currencyId,
+      status: CASHBACK_STATUS.PROCESSING,
+      actionType: CASHBACK_ACTION_TYPE.ADD,
+      amount: amountFrom,
+      senderId: referralBy,
+      receiverId: referralFrom,
+      title: COMMON_TITLE[CASHBACK_TYPE.REFERRAL],
+      description: COMMON_NOTE_STATUS.REFERRAL[CASHBACK_STATUS.PROCESSING],
+      type: CASHBACK_TYPE.REFERRAL,
+      cbHistories: {
+        cbHistories: [
+          {
+            note: COMMON_NOTE_STATUS.REFERRAL[CASHBACK_STATUS.PROCESSING],
+            updatedAt: new Date().toISOString(),
+          },
+        ],
       },
-    });
-    if (
-      account &&
-      UtilsService.getInstance().compareHash(passcode, account.passcode)
-    ) {
-      account.passcode = undefined;
-      return account;
+    };
+    const cbTransactionBy: Prisma.CashbackTransactionUncheckedCreateInput = {
+      currencyId,
+      status: CASHBACK_STATUS.PROCESSING,
+      actionType: CASHBACK_ACTION_TYPE.ADD,
+      amount: amountBy,
+      senderId: referralFrom,
+      receiverId: referralBy,
+      title: COMMON_TITLE[CASHBACK_TYPE.REFERRAL],
+      description: COMMON_NOTE_STATUS.REFERRAL[CASHBACK_STATUS.PROCESSING],
+      type: CASHBACK_TYPE.REFERRAL,
+      cbHistories: {
+        cbHistories: [
+          {
+            note: COMMON_NOTE_STATUS.REFERRAL[CASHBACK_STATUS.PROCESSING],
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      },
+    };
+
+    // 3. Check KYC to update status transaction
+    if (config && !config.needKyc) {
+      cbTransactionBy.status = cbTransactionFrom.status =
+        CASHBACK_STATUS.SUCCESS;
+      cbTransactionBy.description = cbTransactionFrom.description =
+        COMMON_NOTE_STATUS.REFERRAL[CASHBACK_STATUS.SUCCESS];
+      cbTransactionBy.cbHistories = cbTransactionFrom.cbHistories = {
+        cbHistories: [
+          {
+            note: COMMON_NOTE_STATUS.REFERRAL[CASHBACK_STATUS.SUCCESS],
+            updatedAt: new Date().toISOString(),
+          },
+        ],
+      };
+
+      /*
+        Chia version nhằm mục đích:
+
+        1. Giúp quản lý và theo dõi sự thay đổi của dữ liệu (đặc biệt là với những dữ liệu có thể thay đổi thường xuyên).
+        2. Tránh xung đột dữ liệu khi có nhiều thao tác cập nhật đồng thời
+        3. Đảm bảo tính nhất quán của dữ liệu, đặc biệt là trong các giao dịch tài chính như cashback, nơi yêu cầu tính chính xác cao.
+      */
+
+      const payload = {
+        accountReferral: { referralFrom, referralBy },
+        cbTransactionBy,
+        cbTransactionFrom,
+        versionFrom: referralFromInfo.cbAvailable.find(
+          (x) => x.currencyId === currencyId,
+        ).version,
+        versionBy: referralByInfo.cbAvailable.find(
+          (x) => x.currencyId === currencyId,
+        ).version,
+      };
+
+      // await this._clientWallet
+      //   .send(MESSAGE_PATTERN.WALLET.ACCOUNT_REFERRAL, payload)
+      //   .toPromise();
+    } else {
+      // 1. insert Account_referral
+      bulkOps.push(
+        this._repo.getAccountReferral().create({
+          data: { referralFrom, referralBy },
+          select: { createdAt: true },
+        }),
+      );
+      // 2.1. insert cashback_transaction with status=1
+      bulkOps.push(
+        this._repo.getCbTrans().create({ data: cbTransactionFrom }),
+        this._repo.getCbTrans().create({ data: cbTransactionBy }),
+      );
     }
-    return null;
+
+    const descriptionFrom = NOTIFY_DESCRIPTION.REFERRAL_FROM.replace(
+      '$name',
+      referralByInfo.fullName || referralByInfo.phone,
+    ).replace(
+      '$value',
+      Intl.NumberFormat().format(amountFrom) + ` ${coinCode}`,
+    );
+
+    const descriptionBy = NOTIFY_DESCRIPTION.REFERRAL_BY.replace(
+      '$name',
+      referralFromInfo.fullName || referralFromInfo.phone,
+    ).replace('$value', Intl.NumberFormat().format(amountBy) + ` ${coinCode}`);
+
+    // 2.2 insert and send notification
+    // const setting = await this.checkNotificationSetting(referralBy);
+    const data = [
+      {
+        type: NOTIFICATION_TYPE.REFERRAL_FROM,
+        description: descriptionFrom,
+        title: COMMON_TITLE[CASHBACK_TYPE.REFERRAL],
+        accountId: referralFrom,
+        ref: referralFrom,
+      },
+      {
+        type: NOTIFICATION_TYPE.REFERRAL_BY,
+        description: descriptionBy,
+        title: COMMON_TITLE[CASHBACK_TYPE.REFERRAL],
+        accountId: referralBy,
+        ref: referralFrom,
+      },
+    ];
+
+    bulkOps.push(
+      this._repo.getAccountReferralStats().upsert({
+        where: { accountId: referralBy },
+        create: { totalReferrals: 1, accountId: referralBy },
+        update: { totalReferrals: { increment: 1 } },
+        select: { updatedAt: true },
+      }),
+    );
+    bulkOps.push(this._repo.getNotification().createMany({ data }));
+    await this._repo.transaction(bulkOps);
+    // if (referralByInfo.deviceToken) this._notification.sendNotifyNewAccount([referralBy], data[1].description);
   }
 
   async verifyPasscode() {}

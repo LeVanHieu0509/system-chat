@@ -18,9 +18,34 @@
     "strictBindCallApply": false, // Không kiểm tra chặt chẽ khi sử dụng các phương thức `.bind`, `.call`, hoặc `.apply`.
     "forceConsistentCasingInFileNames": false, // Không bắt buộc tính nhất quán về chữ hoa/chữ thường trong tên tệp.
     "noFallthroughCasesInSwitch": false, // Không kích hoạt cảnh báo về việc rơi qua (fallthrough) giữa các trường hợp trong câu lệnh switch.
+    "esModuleInterop": true,
     "paths": {
-      "@app/common": ["libs/common/src"], // Định nghĩa alias `@app/common` trỏ đến `libs/common/src`.
-      "@app/common/*": ["libs/common/src/*"] // Alias cho các tệp và thư mục con trong `libs/common/src`.
+      "@app/repositories": ["libs/repositories"],
+      "@app/repositories/*": ["libs/repositories/*"],
+      "@app/config": ["libs/config/src"],
+      "@app/config/*": ["libs/config/src/*"],
+      "@app/otp": ["libs/otp/src"],
+      "@app/otp/*": ["libs/otp/src/*"],
+      "@app/common": ["libs/common/src"],
+      "@app/common/*": ["libs/common/src/*"],
+      "@app/utils": ["libs/utils/src"],
+      "@app/utils/*": ["libs/utils/src/*"],
+      "@app/caching": ["libs/caching/src"],
+      "@app/caching/*": ["libs/caching/src/*"],
+      "@app/mail": ["libs/mail/src"],
+      "@app/mail/*": ["libs/mail/src/*"],
+      "@app/upload": ["libs/upload/src"],
+      "@app/upload/*": ["libs/upload/src/*"],
+      "@app/dto": ["libs/dto/src"],
+      "@app/dto/*": ["libs/dto/src/*"],
+      "@app/notification": ["libs/notification/src"],
+      "@app/notification/*": ["libs/notification/src/*"],
+      "@app/payme": ["libs/payme/src"],
+      "@app/payme/*": ["libs/payme/src/*"],
+      "@app/redlock": ["libs/redlock/src"],
+      "@app/redlock/*": ["libs/redlock/src/*"],
+      "@app/cashback-transaction": ["libs/cashback-transaction/src"],
+      "@app/cashback-transaction/*": ["libs/cashback-transaction/src/*"]
     }
   },
   "include": ["apps/**/*", "libs/**/*"], // Bao gồm tất cả các tệp trong thư mục apps và libs.
