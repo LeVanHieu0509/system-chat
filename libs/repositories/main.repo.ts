@@ -25,11 +25,27 @@ class PageOptions {
   }
 }
 
+/*
+  1. RepoModule giúp bạn tùy chỉnh các thao tác với dữ liệu mà không phụ thuộc quá nhiều vào những gì TypeOrmModule cung cấp sẵn
+  2. Giống như là repository của typeORM -> thay vì sử dụng thì tk lol này nó viết ra 1 cái giống v để mà truy vấn
+  3. Mang lại tính linh hoạt và khả năng bảo trì cao hơn cho ứng dụng của bạn, đặc biệt phù hợp với các dự án lớn và phức tạp.
+
+  4. Khi tất cả các thao tác truy cập cơ sở dữ liệu được định nghĩa trong một nơi duy nhất (MainRepo), 
+  bạn có thể tái sử dụng chúng một cách dễ dàng trong các service khác 
+  mà không phải viết lại logic kết nối hoặc truy cập cơ sở dữ liệu cho mỗi module.
+*/
+
 @Injectable()
+
+// giải phóng (onModuleDestroy()) kết nối với cơ sở dữ liệu một cách tự động
+// Điều này giúp bạn quản lý vòng đời của kết nối cơ sở dữ liệu hiệu quả hơn,
+// tránh các vấn đề liên quan đến kết nối bị treo hoặc rò rỉ.
 export class MainRepo
   extends BaseClient
   implements OnModuleInit, OnModuleDestroy
 {
+  // chạy các truy vấn SQL thủ công
+  // Điều này rất hữu ích khi bạn cần tối ưu hóa truy vấn hoặc thực hiện các tác vụ đặc thù mà ORM không hỗ trợ
   sql<T = unknown>(
     sql: TemplateStringsArray | string,
     ...values: any[]
