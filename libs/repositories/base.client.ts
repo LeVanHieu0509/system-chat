@@ -95,6 +95,8 @@ export class BaseClient {
   // Phương thức này thực hiện việc di cư cơ sở dữ liệu (migration) khi không chạy trong môi trường local.
   // Sử dụng child_process để gọi lệnh di cư từ yarn.
   private async executeMigration() {
+    this._logger.log(`executeMigration --> NODE_ENV=${NODE_ENV}`);
+
     if (NODE_ENV !== 'local') {
       await new Promise((resolve, reject) => {
         const { exec } = require('child_process');
