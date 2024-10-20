@@ -41,7 +41,7 @@ import {
 } from 'libs/notification/src/notification.description';
 import { MainRepo } from 'libs/repositories/main.repo';
 import { UtilsService } from 'libs/utils/src';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, lastValueFrom } from 'rxjs';
 
 const HiddenChar = '*********';
 const REASON = {
@@ -518,7 +518,7 @@ export class AuthenticatorService {
     // Tạo đối tượng giao dịch cashback (cbTransaction) để ghi lại các thông tin như
     const cbTransaction: Prisma.CashbackTransactionUncheckedCreateInput = {
       currencyId, //ID của loại tiền tệ - "bf36a218-48dd-4e12-a5f5-de00fd36ff43"
-      id: transactionId, //ID tài khoản nhận thưởng - "de40a3a0-8ad5-11ef-9d77-ed91ef367574"
+      // id: transactionId, //ID tài khoản nhận thưởng - "de40a3a0-8ad5-11ef-9d77-ed91ef367574"
       status: CASHBACK_STATUS.PROCESSING, // Trạng thái của giao dịch (ở đây là PROCESSING). - 1
       actionType: CASHBACK_ACTION_TYPE.ADD, // -- 10
       amount, // Số tiền thưởng. - 1000
@@ -603,6 +603,8 @@ export class AuthenticatorService {
       this._logger.log(
         `rewardNewAccount --> payload: ${JSON.stringify(payload)}`,
       );
+      bulkOps.push(this._repo.getCbTrans().create({ data: cbTransaction }));
+      await this._repo.transaction(bulkOps);
 
       // Thêm thao tác tạo giao dịch cashback (cbTransaction) vào bulkOps
       await firstValueFrom(
@@ -612,10 +614,7 @@ export class AuthenticatorService {
         ),
       );
 
-      bulkOps.push(this._repo.getCbTrans().create({ data: cbTransaction }));
-
       // save into database
-      await this._repo.transaction(bulkOps);
     }
 
     //để gửi thông báo cho tài khoản mới
@@ -734,9 +733,12 @@ export class AuthenticatorService {
         ).version,
       };
 
-      // await this._clientWallet
-      //   .send(MESSAGE_PATTERN.WALLET.ACCOUNT_REFERRAL, payload)
-      //   .toPromise();
+      await lastValueFrom(
+        this._clientWallet.send(
+          MESSAGE_PATTERN.WALLET.ACCOUNT_REFERRAL,
+          payload,
+        ),
+      );
     } else {
       // 1. insert Account_referral
       bulkOps.push(

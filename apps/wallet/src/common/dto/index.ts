@@ -1,7 +1,21 @@
-import { CashbackTransactionEntity } from '../../entities/cashback-transaction.entity';
+import { AccountReferral, Prisma } from '@prisma/client';
+
+export interface CBAvailable {
+  amount: string;
+  currencyId: string;
+  version: number;
+}
+
+export interface AccountReferralPayloadDto {
+  cbTransactionFrom: Prisma.CashbackTransactionUncheckedCreateInput;
+  cbTransactionBy: Prisma.CashbackTransactionUncheckedCreateInput;
+  accountReferral: AccountReferral;
+  versionFrom: number;
+  versionBy: number;
+}
 
 export interface RevertBalancePayloadDto {
-  cbTransaction: CashbackTransactionEntity;
+  cbTransaction: Prisma.CashbackTransactionUncheckedCreateInput;
   version: number;
   broker?: boolean;
 }

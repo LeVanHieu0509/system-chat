@@ -104,7 +104,7 @@ model CashbackAvailable {
     currency  CurrencyMaster               @relation(fields: [currencyId], references: [id])
     histories CashbackAvailableHistories[]
 
-    @@unique([currencyId, accountId])
+    @@unique([accountId, currencyId, version])
     @@map("cashback_available")
 }
 

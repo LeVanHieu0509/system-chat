@@ -2,7 +2,10 @@ import { MESSAGE_PATTERN } from '@app/common';
 import { Ack } from '@app/common/decorators/ack.decorator';
 import { Controller, Logger } from '@nestjs/common';
 import { MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
-import { RevertBalancePayloadDto } from './common/dto';
+import {
+  AccountReferralPayloadDto,
+  RevertBalancePayloadDto,
+} from './common/dto';
 import { WalletService } from './wallet.service';
 
 @Controller('wallet')
@@ -22,5 +25,13 @@ export class WalletController {
       input.cbTransaction,
       input.version,
     );
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.WALLET.ACCOUNT_REFERRAL)
+  accountReferral(
+    @Payload() input: AccountReferralPayloadDto,
+    @Ack() _: RmqContext,
+  ) {
+    return this.walletService.accountReferral(input);
   }
 }

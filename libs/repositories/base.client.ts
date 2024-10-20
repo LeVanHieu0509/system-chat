@@ -94,6 +94,7 @@ export class BaseClient {
   // Phương thức thực hiện migration
   // Phương thức này thực hiện việc di cư cơ sở dữ liệu (migration) khi không chạy trong môi trường local.
   // Sử dụng child_process để gọi lệnh di cư từ yarn.
+  // Hiện tại có bao nhiêu phiên bản migration thì nó sẽ chạy hết các phiên bản đó luôn để cấp nhật dữ liệu phù hợp với CSDl tránh bị lỗi.
   private async executeMigration() {
     this._logger.log(`executeMigration --> NODE_ENV=${NODE_ENV}`);
 

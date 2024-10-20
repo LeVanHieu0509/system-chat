@@ -67,6 +67,10 @@ export class MainRepo
     return this._client.cashbackAvailable;
   }
 
+  getCbAvailableHistory() {
+    return this._client.cashbackAvailableHistories;
+  }
+
   getCbTrans() {
     return this._client.cashbackTransaction;
   }
