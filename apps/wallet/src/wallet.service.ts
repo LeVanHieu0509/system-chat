@@ -1,9 +1,9 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaClient, PrismaPromise } from '@prisma/client';
-import { BaseService } from './common/base.service';
-import { LockVersionMismatchException } from './exceptions/lock-version-mismatch.exception';
 import { MainRepo } from '@app/repositories/main.repo';
+import { Injectable } from '@nestjs/common';
+import { PrismaPromise } from '@prisma/client';
+import { BaseService } from './common/base.service';
 import { AccountReferralPayloadDto } from './common/dto';
+import { LockVersionMismatchException } from './exceptions/lock-version-mismatch.exception';
 
 type CashbackTx = any; // Define a more specific type according to your Prisma schema
 
@@ -18,6 +18,7 @@ export class WalletService extends BaseService {
     super(WalletService.name);
   }
 
+  // Xử lý việc giới thiệu tài khoản (referral).
   async accountReferral(input: AccountReferralPayloadDto) {
     this.logStart('accountReferral');
 
@@ -30,15 +31,21 @@ export class WalletService extends BaseService {
     } = input;
     cbTransactionBy.updatedAt = cbTransactionFrom.updatedAt = new Date();
     const bulkOps: PrismaPromise<any>[] = [];
-    this._logger.db(`accountReferralRepository -> insert`, accountReferral),
-      bulkOps.push(
-        this._repo.getAccountReferral().create({
-          data: accountReferral,
-        }),
-      );
 
-    await this.increaseBalance(cbTransactionBy, versionBy);
-    await this.increaseBalance(cbTransactionFrom, versionFrom);
+    this._logger.db(`accountReferralRepository -> insert`, accountReferral);
+
+    // Tạo bản ghi referral vào cơ sở dữ liệu.
+    bulkOps.push(
+      this._repo.getAccountReferral().create({
+        data: accountReferral,
+      }),
+    );
+
+    // Tăng số dư của cả hai tài khoản (cbTransactionBy và cbTransactionFrom) thông qua increaseBalance.
+    await Promise.all([
+      this.increaseBalance(cbTransactionBy, versionBy),
+      this.increaseBalance(cbTransactionFrom, versionFrom),
+    ]);
 
     const output = await this._repo.transaction(bulkOps);
 
@@ -46,6 +53,7 @@ export class WalletService extends BaseService {
     return output;
   }
 
+  //  Tăng số dư của một tài khoản.
   async increaseBalance(
     cbTransaction: CashbackTx,
     version: number,
@@ -53,8 +61,11 @@ export class WalletService extends BaseService {
   ) {
     this.logStart(`increaseBalance -> accountId: ${cbTransaction.receiverId}`);
     const { amount, receiverId, currencyId } = cbTransaction;
+
+    // Cập nhật thời gian giao dịch.
     cbTransaction.updatedAt = new Date();
 
+    // Gọi updateBalance để cập nhật số dư hiện tại của tài khoản và trả về oldBalance
     cbTransaction.oldBalance = await this.updateBalance(
       amount,
       receiverId,
@@ -63,9 +74,38 @@ export class WalletService extends BaseService {
       ActionType.INCREMENT,
     );
 
+    // Chèn giao dịch hoàn tiền (cashback) vào cơ sở dữ liệu.
     const output = await this.insertCashbackTransaction(cbTransaction, broker);
 
     this.logEnd(`increaseBalance -> accountId: ${cbTransaction.receiverId}`);
+    return output;
+  }
+
+  //  Giảm số dư của một tài khoản.
+  async decreaseBalance(
+    cbTransaction: CashbackTx,
+    version: number,
+    broker = false,
+  ) {
+    this.logStart(`decreaseBalance -> accountId: ${cbTransaction.receiverId}`);
+    const { amount, senderId, currencyId } = cbTransaction;
+
+    // Cập nhật thời gian giao dịch.
+    cbTransaction.updatedAt = new Date();
+
+    // Gọi updateBalance để cập nhật số dư hiện tại của tài khoản và trả về oldBalance
+    cbTransaction.oldBalance = await this.updateBalance(
+      amount,
+      senderId,
+      currencyId,
+      version,
+      ActionType.DECREMENT,
+    );
+
+    // Chèn giao dịch hoàn tiền (cashback) vào cơ sở dữ liệu.
+    const output = await this.insertCashbackTransaction(cbTransaction, broker);
+
+    this.logEnd(`decreaseBalance -> accountId: ${cbTransaction.receiverId}`);
     return output;
   }
 
@@ -73,17 +113,22 @@ export class WalletService extends BaseService {
     cbTransaction: CashbackTx,
     broker = false,
   ) {
-    if (broker) {
-      this._logger.db(`cashbackTransactionBroker -()> insert`, cbTransaction);
-      return await this._repo.getBrokerTransaction().create({
-        data: cbTransaction,
-      });
-    } else {
-      this._logger.db(`cashbackTransaction -> insert`, cbTransaction);
-      return await this._repo.getCbTrans().create({
-        data: cbTransaction,
-      });
-    }
+    // Giao dịch này có thể là của broker (nhà môi giới) hoặc giao dịch bình thường, dựa vào giá trị broker.
+    // Broker là 1 user được tạo ra từ hệ thống -> hệ thống có thể chuyển tiền cho Broker -> Broker tiêu gì thì tiêu
+    // Tài khoản này dùng để đi shill coin.
+
+    const repoMethod = broker
+      ? this._repo.getBrokerTransaction().create({ data: cbTransaction })
+      : this._repo.getCbTrans().create({ data: cbTransaction });
+
+    this._logger.db(
+      `${
+        broker ? 'cashbackTransactionBroker' : 'cashbackTransaction'
+      } -> insert`,
+      cbTransaction,
+    );
+
+    return repoMethod;
   }
 
   private async updateBalance(
@@ -103,7 +148,7 @@ export class WalletService extends BaseService {
       })}`,
     );
 
-    const cbAvailable = await this._repo.getCbAvailable().findUnique({
+    const cbAvailable = await this._repo.getCbAvailable().findUniqueOrThrow({
       where: {
         accountId_currencyId_version: {
           accountId: accountId,
