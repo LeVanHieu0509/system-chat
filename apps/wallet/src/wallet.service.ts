@@ -2,7 +2,7 @@ import { MainRepo } from '@app/repositories/main.repo';
 import { Injectable } from '@nestjs/common';
 import { PrismaPromise } from '@prisma/client';
 import { BaseService } from './common/base.service';
-import { AccountReferralPayloadDto } from './common/dto';
+import { AccountReferralPayloadDto, UserDepositPayloadDto } from './common/dto';
 import { LockVersionMismatchException } from './exceptions/lock-version-mismatch.exception';
 
 type CashbackTx = any; // Define a more specific type according to your Prisma schema
@@ -197,5 +197,35 @@ export class WalletService extends BaseService {
     }
 
     return oldBalance;
+  }
+
+  async userDeposit(input: UserDepositPayloadDto) {
+    this.logStart(
+      `userDeposit -> accountId: ${input.cbTransaction.receiverId}`,
+    );
+
+    const { cbTransaction, partnerTransaction, version } = input;
+    cbTransaction.updatedAt = partnerTransaction.updatedAt = new Date();
+
+    const output = await this._repo.transaction(async (prisma) => {
+      this._logger.db(
+        `partnerTransactionRepository -> update`,
+        partnerTransaction,
+      );
+
+      const updateResult = await prisma.partnerTransaction.update({
+        where: { orderId: partnerTransaction.orderId },
+        data: { ...partnerTransaction },
+      });
+
+      if (!updateResult) {
+        throw new LockVersionMismatchException();
+      }
+
+      return await this.increaseBalance(cbTransaction, version);
+    });
+
+    this.logEnd(`userDeposit -> accountId: ${input.cbTransaction.receiverId}`);
+    return output;
   }
 }

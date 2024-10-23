@@ -27,7 +27,7 @@ import {
   SignupRequestDto,
   TokenPayloadDto,
   VerifyPasscodeSigninRequestDto,
-} from 'libs/dto/src';
+} from '@app/dto';
 import { firstValueFrom, last, lastValueFrom } from 'rxjs';
 
 @Injectable()

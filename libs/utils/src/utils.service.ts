@@ -335,7 +335,7 @@ export class UtilsService {
   }
 
   compareVersion(v1: string, v2: string) {
-    if (typeof v1 !== 'string' || typeof v2 !== 'string') return false;
+    if (typeof v1 !== 'string' || typeof v2 !== 'string') return -1;
 
     const levels1 = v1.split('.');
     const levels2 = v2.split('.');
@@ -352,6 +352,7 @@ export class UtilsService {
 
     return 0;
   }
+
   randomEmail() {
     const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
 

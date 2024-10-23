@@ -33,7 +33,7 @@
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "typeorm:migration:generate": "npm run typeorm -- migration:generate -n",
     "typeorm:migration:run": "npm run typeorm -- migration:run",
-    "dev:local": "yarn dev & yarn dev:auth & yarn dev:wallet",
+    "dev:local": "yarn dev & yarn dev:auth & yarn dev:wallet & yarn dev:cashback",
     "build:local": "yarn build:auth & yarn build:gateway & yarn dev:wallet"
   },
   "dependencies": {
@@ -84,6 +84,7 @@
     "pg": "^8.11.3",
     "prisma": "^5.20.0",
     "redis": "^4.6.7",
+    "redlock": "^5.0.0-beta.2",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
     "swagger-ui-express": "^5.0.0",

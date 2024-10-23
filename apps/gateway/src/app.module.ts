@@ -26,6 +26,10 @@ import { LoggerMiddleware } from './middleware/logger.middleware';
 import { SessionMiddleware } from './middleware/session.middleware';
 import { SessionController } from './session.controller';
 import walletQueueProvider from '@app/common/providers/queues/wallet-queue.provider';
+import cashbackQueueProvider from '@app/common/providers/queues/cashback-queue.provider';
+import { CashbackController } from './cashback.controller';
+import { PartnerController } from './partner.controller';
+import { RedlockModule } from '@app/redlock';
 @Module({
   imports: [
     HttpModule,
@@ -48,13 +52,20 @@ import walletQueueProvider from '@app/common/providers/queues/wallet-queue.provi
         max: CACHE_MAX,
       }),
     }),
+    RedlockModule.register(),
   ], // HttpModule được import để sử dụng các tính năng về HTTP
-  controllers: [AuthController, SessionController], // module này sẽ chịu trách nhiệm quản lý các route liên quan đến xác thực (auth). Controller nhận các yêu cầu HTTP từ client và chuyển đến AuthService để xử lý.
+  controllers: [
+    PartnerController,
+    CashbackController,
+    AuthController,
+    SessionController,
+  ], // module này sẽ chịu trách nhiệm quản lý các route liên quan đến xác thực (auth). Controller nhận các yêu cầu HTTP từ client và chuyển đến AuthService để xử lý.
   providers: [
     JwtStrategy,
     AuthService,
     authenticatorQueueProvider,
     walletQueueProvider,
+    cashbackQueueProvider,
     { provide: APP_GUARD, useClass: JwtRolesAuthGuard },
   ], // Đây là các provider được khai báo trong module.
 })

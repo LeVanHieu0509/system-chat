@@ -33,7 +33,7 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
-} from 'libs/dto/src';
+} from '@app/dto';
 import {
   COMMON_NOTE_STATUS,
   COMMON_TITLE,

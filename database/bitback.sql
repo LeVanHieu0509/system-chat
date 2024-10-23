@@ -743,25 +743,25 @@ CREATE TABLE `notification` (
 );
 
 CREATE TABLE `partner_transaction` (
-  `order_id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `amount` numeric(65,30) NOT NULL DEFAULT 0,
+  `order_id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()), -- lưu trữ mã đơn hàng
+  `amount` numeric(65,30) NOT NULL DEFAULT 0, -- Giá trị số tiền của giao dịch, với độ chính xác rất cao
   `status` smallint NOT NULL DEFAULT 1,
-  `vndc_receiver` VARCHAR(50),
+  `vndc_receiver` VARCHAR(50), -- Lưu trữ thông tin người nhận tiền VNDC
   `title` VARCHAR(150),
   `description` VARCHAR(255),
-  `store_id` VARCHAR(50),
-  `payme_id` VARCHAR(20),
+  `store_id` VARCHAR(50), -- Mã của cửa hàng liên quan đến giao dịch
+  `payme_id` VARCHAR(20), -- Mã PayMe liên quan đến giao dịch
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `account_id` VARCHAR(36) NOT NULL,
-  `amount_exchange` numeric(65,30) NOT NULL DEFAULT 0,
-  `partner_type` smallint NOT NULL DEFAULT 1,
+  `account_id` VARCHAR(36) NOT NULL, -- Mã tài khoản liên quan đến giao dịch
+  `amount_exchange` numeric(65,30) NOT NULL DEFAULT 0, -- Giá trị số tiền sau khi được chuyển đổi, với độ chính xác cao
+  `partner_type` smallint NOT NULL DEFAULT 1, -- Loại đối tác liên quan đến giao dịch
   `histories` TEXT,
-  `method_type` smallint NOT NULL DEFAULT 1,
-  `type` smallint NOT NULL DEFAULT 1,
-  `transaction_id` VARCHAR(32),
-  `exchange_rate` double precision NOT NULL DEFAULT 0,
-  `currency_id` VARCHAR(36)
+  `method_type` smallint NOT NULL DEFAULT 1, -- Loại phương thức thanh toán của giao dịc
+  `type` smallint NOT NULL DEFAULT 1, -- Loại giao dịch, ví dụ như nạp tiền, rút tiền, chuyển khoản, 
+  `transaction_id` VARCHAR(32), -- Mã giao dịch liên quan
+  `exchange_rate` double precision NOT NULL DEFAULT 0, -- Tỷ giá chuyển đổi, lưu trữ dưới dạng double precision
+  `currency_id` VARCHAR(36) -- Mã của loại tiền tệ được sử dụng trong giao dịch, 
 );
 
 CREATE TABLE `pool_bbc_history` (

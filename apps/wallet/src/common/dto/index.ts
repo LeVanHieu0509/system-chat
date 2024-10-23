@@ -19,3 +19,9 @@ export interface RevertBalancePayloadDto {
   version: number;
   broker?: boolean;
 }
+
+export interface UserDepositPayloadDto {
+  cbTransaction: Prisma.CashbackTransactionUncheckedCreateInput;
+  partnerTransaction: Prisma.PartnerTransactionUncheckedCreateInput;
+  version?: number;
+}

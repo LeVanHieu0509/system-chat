@@ -7,12 +7,17 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
-} from 'libs/dto/src';
+} from '@app/dto';
 import { AuthenticatorService } from './authenticator.service';
+import { BuyVNDCRequestDto } from '@app/dto';
+import { PartnerService } from './partner.service';
 
 @Controller()
 export class AuthenticatorController {
-  constructor(private readonly _service: AuthenticatorService) {}
+  constructor(
+    private readonly _service: AuthenticatorService,
+    private readonly _partnerService: PartnerService,
+  ) {}
 
   @Get()
   getHello(): string {
@@ -71,5 +76,27 @@ export class AuthenticatorController {
   @MessagePattern(MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT)
   async saveAccount(@Payload() input: Account, @Ack() _: RmqContext) {
     return this._service.saveAccount(input);
+  }
+
+  // --------------------------------------- PARTNER -------------------------------------------//
+  @MessagePattern(MESSAGE_PATTERN.VNDC.CREATE_BUY_VNDC_TRANSACTION)
+  createBuyVNDCOrder(
+    @Payload() input: BuyVNDCRequestDto & { accountId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.createBuyVNDCTransaction(input);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.CANCEL_TRANSACTION)
+  cancelTransaction(@Payload() orderId: string, @Ack() _: RmqContext) {
+    return this._partnerService.cancelTransactionById(orderId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.UPDATE_STATUS_TRANSACTION)
+  updateStatusTransaction(
+    @Payload() { orderId, accountId }: { orderId: string; accountId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.updateStatusTransaction(accountId, orderId);
   }
 }

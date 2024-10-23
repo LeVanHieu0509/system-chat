@@ -5,6 +5,7 @@ import { MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import {
   AccountReferralPayloadDto,
   RevertBalancePayloadDto,
+  UserDepositPayloadDto,
 } from './common/dto';
 import { WalletService } from './wallet.service';
 
@@ -33,5 +34,11 @@ export class WalletController {
     @Ack() _: RmqContext,
   ) {
     return this.walletService.accountReferral(input);
+  }
+
+  // CashBack Service và Cronjob sẽ call function này
+  @MessagePattern(MESSAGE_PATTERN.WALLET.USER_DEPOSIT)
+  userDeposit(@Payload() input: UserDepositPayloadDto, @Ack() _: RmqContext) {
+    return this.walletService.userDeposit(input);
   }
 }

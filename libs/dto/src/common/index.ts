@@ -1,5 +1,6 @@
 import { Order, UPLOAD_TYPE_APP } from '@app/common/constants';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
+import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   Allow,
@@ -81,6 +82,7 @@ export class ISODateQueryDto extends PaginationDto {
 }
 
 export class VersionQueryDto extends PaginationDto {
+  @ApiProperty({ type: String })
   @IsOptional()
   @IsString()
   version: string;

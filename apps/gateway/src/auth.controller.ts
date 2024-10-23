@@ -23,7 +23,7 @@ import {
   RefreshTokenRequestDto,
   SignupRequestDto,
   VerifyPasscodeSigninRequestDto,
-} from 'libs/dto/src';
+} from '@app/dto';
 import { AuthService } from './auth.service';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 

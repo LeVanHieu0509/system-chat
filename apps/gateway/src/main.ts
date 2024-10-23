@@ -1,4 +1,4 @@
-import { ValidationPipe } from '@nestjs/common';
+import { BadRequestExceptionFilter } from '@app/common/filters/bad-request.filter';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
@@ -7,7 +7,6 @@ import { SwaggerSetup } from 'libs/swagger/swagger.module';
 import { AppModule } from './app.module';
 import { GatewayExceptionFilter } from './filter';
 import { logger } from './middleware/global.middleware';
-import { BadRequestExceptionFilter } from '@app/common/filters/bad-request.filter';
 
 // const logger = new Logger('Bitback-Main');
 

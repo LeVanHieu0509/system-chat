@@ -87,8 +87,16 @@ export class BaseClient {
   }
 
   // Phương thức xử lý transaction
-  public transaction(arg: Prisma.PrismaPromise<any>[]) {
-    return this._client.$transaction(arg);
+  public transaction(
+    arg:
+      | Prisma.PrismaPromise<any>[]
+      | ((prisma: Prisma.TransactionClient) => Promise<any>),
+  ) {
+    if (Array.isArray(arg)) {
+      return this._client.$transaction(arg);
+    } else {
+      return this._client.$transaction(arg);
+    }
   }
 
   // Phương thức thực hiện migration
