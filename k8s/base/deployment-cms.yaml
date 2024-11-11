@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: trustpay-be-cms, labels: { project: trustpay } }
+spec:
+  selector: { matchLabels: { app: trustpay-be-cms } }
+  template:
+    metadata: { labels: { app: trustpay-be-cms } }
+    spec:
+      imagePullSecrets: [{ name: gitlab-dockerconfig }]
+      containers:
+        - name: main
+          image: trustpay-be
+          imagePullPolicy: IfNotPresent
+          ports: [{ name: http, containerPort: 3005 }]
+          envFrom: [{ secretRef: { name: 'trustpay-env' } }]
+          env:
+            - name: SERVICE_NAME
+              value: cms
+          # TODO: review this
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: '2', memory: '4Gi' }

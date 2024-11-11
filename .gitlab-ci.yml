@@ -1,0 +1,78 @@
+# stages: [build, deploy]: Định nghĩa hai stages của pipeline là build và deploy.
+
+.BUILD:
+  stage: build
+  image: docker:20 # Sử dụng image docker:20, cùng với docker:20-dind làm dịch vụ để hỗ trợ Docker trong Docker (dind)
+  services: [docker:20-dind]
+
+  # Không sử dụng cache của GitLab CI (cache: []), thay vào đó, cache của Docker image được dùng.
+  cache: [] # Disable cache, since we use image cache instead
+
+  # Kiểm tra và đăng nhập Docker: Đảm bảo Docker dind đã sẵn sàng bằng cách thử docker info nhiều lần với thời gian chờ 5 giây.
+  # Đăng nhập Docker Registry: Sử dụng các biến CI_REGISTRY_USER và CI_REGISTRY_PASSWORD để đăng nhập.
+
+  # Build Cache:
+  # Pull image từ registry với tag cache, nếu có, dùng làm cache để tăng tốc build.
+  # Build lại cache image cho base stage trong Dockerfile, để dùng làm cache cho các build sau.
+  # Build Final Image:
+  # Sử dụng cache và build image cuối với các tags là CI_COMMIT_REF_SLUG và CI_COMMIT_SHORT_SHA.
+
+  # Push Image:
+  # Push tất cả các tags của image vừa build vào registry.
+
+  script:
+    - echo "🤖 Preparing..."
+    # sometimes dind svc seems too long to start and/or dind certs are long to be available on builder
+    - i=0; while [ "$i" -lt 20 ]; do docker info && break; sleep 5; i=$(( i + 1 )) ; done
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - echo "🏗 Build Cache"
+    - docker pull $CI_REGISTRY_IMAGE:cache || true
+    # Build cache image, target "base" stage
+    - >-
+      docker build
+      --cache-from $CI_REGISTRY_IMAGE:cache
+      --tag $CI_REGISTRY_IMAGE:cache
+      --target base
+      .
+    - echo "🏗 Building Apps"
+    # Build final image
+    - >-
+      docker build
+      --cache-from $CI_REGISTRY_IMAGE:cache
+      --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+      --tag $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+      --target final
+      .
+    # Push final image
+    - docker push --all-tags $CI_REGISTRY_IMAGE
+
+.DEPLOY:
+  stage: deploy
+  # Sử dụng image toanzzz/kubectl để tương tác với Kubernetes.
+  image: { name: toanzzz/kubectl }
+  rules:
+    # UAT Deploy: Nếu branch là deploy/uat, pipeline sẽ đặt TARGET_ENV thành uat
+    # Production Deploy: Nếu branch là deploy/prod, pipeline sẽ đặt TARGET_ENV thành prod.
+
+    - if: '$CI_COMMIT_BRANCH == "deploy/uat"'
+      variables: { TARGET_ENV: uat }
+    - if: '$CI_COMMIT_BRANCH == "deploy/prod"'
+      variables: { TARGET_ENV: prod }
+  script:
+    # Thay thế các biến môi trường trong file k8s/_kustomization.yaml và lưu thành k8s/kustomization.yaml.
+    # Sử dụng context b4906/ci-cd-agent:prod để kết nối đến cluster.
+    # Chạy lệnh kubectl apply -k k8s để triển khai với Kustomize, dựa trên k8s/kustomization.yaml.
+
+    - cat k8s/_kustomization.yaml | envsubst > k8s/kustomization.yaml
+    - kubectl config use-context b4906/ci-cd-agent:prod
+    - kubectl apply -k k8s
+
+stages: [build, deploy]
+
+# Chạy job build theo cấu hình từ .BUILD
+# Chạy job deploy theo cấu hình từ .DEPLOY.
+'🛠 build': { extends: .BUILD }
+'🚀 deploy': { extends: .DEPLOY }
+# Pipeline này tự động build và deploy image Docker vào Kubernetes cluster
+# dựa trên môi trường và nhánh (branch) của commit.
+# Việc sử dụng Docker cache và Kustomize giúp tăng hiệu suất và khả năng cấu hình linh hoạt khi triển khai ứng dụng.

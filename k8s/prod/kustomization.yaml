@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases: [../base]
+
+resources:
+  - ./ingress.yaml
+
+namespace: backend
+# Cấu hình số lượng replicas (bản sao) cho các thành phần khác nhau của ứng dụng
+# Việc cấu hình số lượng bản sao cho từng thành phần giúp đảm bảo tính sẵn sàng
+# và khả năng xử lý tải cao của hệ thống trong môi trường sản xuất
+
+replicas:
+  - name: trustpay-be-auth
+    count: 3
+  - name: trustpay-be-bitfarm
+    count: 3
+  - name: trustpay-be-cashback
+    count: 3
+  - name: trustpay-be-gateway
+    count: 4
+  - name: trustpay-be-minigame
+    count: 3
+  - name: trustpay-be-wallet
+    count: 3
+# patches:
+#   - target:
+#       kind: Deployment
+#     patch: |-
+#       - op: add
+#         path: /spec/template/spec/nodeSelector
+#         value:
+#           bitback/role: prod
+#       - op: add
+#         path: /spec/template/spec/tolerations
+#         value:
+#           - key: bitback/role
+#             effect: NoSchedule
+#             value: prod

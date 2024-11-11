@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: trustpay-be
+spec:
+  tls:
+    - hosts:
+        - api.bitback.community
+        - admin-api.bitback.community
+        - partner-api.bitback.community
+  rules:
+    - host: api.bitback.community
+      http:
+        paths:
+          - pathType: Prefix
+            path: '/'
+            backend:
+              service:
+                name: trustpay-be-gateway
+                port: { name: http }
+    - host: admin-api.bitback.community
+      http:
+        paths:
+          - pathType: Prefix
+            path: '/'
+            backend:
+              service:
+                name: trustpay-be-cms
+                port: { name: http }
+    - host: partner-api.bitback.community
+      http:
+        paths:
+          - pathType: Prefix
+            path: '/'
+            backend:
+              service:
+                name: trustpay-be-thirdparty
+                port: { name: http }

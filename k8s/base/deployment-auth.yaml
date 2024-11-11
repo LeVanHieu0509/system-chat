@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment # Deployment chịu trách nhiệm triển khai và quản lý vòng đời của các container.
+# Tên của Deployment là trustpay-be-auth
+# Gán nhãn project: trustpay cho tài nguyên này, giúp phân loại và tìm kiếm dễ dàng hơn
+metadata: { name: trustpay-be-auth, labels: { project: trustpay } }
+spec:
+  # Sử dụng matchLabels để chỉ định các Pod nào sẽ được quản lý bởi Deployment này
+  # Các Pod có nhãn app: trustpay-be-auth sẽ được kiểm soát bởi Deployment.
+  selector: { matchLabels: { app: trustpay-be-auth } }
+
+  # Định nghĩa mẫu cho các Pod sẽ được tạo bởi Deployment
+  template:
+    # Gán nhãn app: trustpay-be-auth cho các Pod được tạo, giúp Deployment dễ dàng quản lý chúng
+    metadata: { labels: { app: trustpay-be-auth } }
+    spec:
+      # Sử dụng gitlab-dockerconfig để lấy thông tin xác thực khi kéo (pull) hình ảnh từ registry bảo mật.
+      imagePullSecrets: [{ name: gitlab-dockerconfig }]
+
+      # Danh sách các container trong Pod
+      containers:
+        - name: main # Tên của container là main
+          image: trustpay-be #  Hình ảnh container là trustpay-be. Đây có thể là tên hình ảnh Docker, dùng để chạy ứng dụng.
+          imagePullPolicy: IfNotPresent # Đặt là IfNotPresent, Kubernetes sẽ chỉ tải lại hình ảnh nếu nó chưa tồn tại trên node
+
+          # Định nghĩa các cổng mà container lắng nghe. Ở đây, container mở cổng 3005 và gán tên là http
+          ports: [{ name: http, containerPort: 3005 }]
+
+          # Sử dụng secretRef để tải các biến môi trường từ secret có tên trustpay-env
+          envFrom: [{ secretRef: { name: 'trustpay-env' } }]
+          env:
+            - name: SERVICE_NAME
+              value: auth
+            - name: ELASTIC_APM_SERVICE_NAME
+              value: bitback-auth-production
+          # TODO: review this
+          resources:
+            # Lượng tài nguyên tối thiểu mà container yêu cầu để chạy
+            requests: { cpu: 100m, memory: 128Mi }
+
+            # Giới hạn tối đa tài nguyên mà container có thể sử dụng.
+            limits: { cpu: '2', memory: '4Gi' }

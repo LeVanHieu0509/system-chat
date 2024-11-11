@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# File Kustomization này định nghĩa các tài nguyên trong môi trường uat
+
+# Trường bases trỏ tới thư mục ../base, là nơi chứa cấu hình cơ bản chung cho các môi trường khác nhau
+bases: [../base]
+
+# Danh sách các tài nguyên bổ sung sẽ được thêm vào cấu hình
+resources:
+  - ./ingress.yaml
+
+namespace: backend-uat
+# patches:
+#   - target:
+#       kind: Deployment
+#     patch: |-
+#       - op: add
+#         path: /spec/template/spec/nodeSelector
+#         value:
+#           bitback/role: uat
+#       - op: add
+#         path: /spec/template/spec/tolerations
+#         value:
+#           - key: bitback/role
+#             effect: NoSchedule
+#             value: uat

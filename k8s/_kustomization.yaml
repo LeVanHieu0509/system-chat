@@ -1,0 +1,25 @@
+# This file is use for deployment only
+# Intended to pass to `envsubst`
+
+# Kustomize là công cụ quản lý cấu hình trong Kubernetes,
+# cho phép áp dụng các thay đổi linh hoạt cho từng môi trường
+# mà không cần phải thay đổi trực tiếp các file cấu hình gốc.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization # cho phép Kustomize nhận diện file này để áp dụng các chỉnh sửa cho cấu hình Kubernetes.
+
+# Trường bases định nghĩa các thư mục chứa cấu hình cơ bản cho từng môi trường cụ thể
+# dev, uat, prod
+bases: ['./${TARGET_ENV}']
+
+# Trường images cho phép thay thế hình ảnh Docker được dùng trong triển khai
+images:
+  # Tên của hình ảnh gốc là trustpay-be
+  - name: trustpay-be
+
+    # Tên hình ảnh mới thay thế, ở đây là ${CI_REGISTRY_IMAGE}
+    newName: '${CI_REGISTRY_IMAGE}'
+
+    # Thẻ (tag) mới của hình ảnh, là ${CI_COMMIT_SHORT_SHA}
+    # Biến này thường đại diện cho mã hash ngắn của commit hiện tại, giúp nhận diện phiên bản triển khai.
+    newTag: '${CI_COMMIT_SHORT_SHA}'
