@@ -1,4 +1,4 @@
-import { OTP_TYPE } from '@app/common/constants';
+import { MESSAGE_PATTERN, OTP_TYPE, QUEUES } from '@app/common/constants';
 import { Public } from '@app/common/decorators';
 import { MainValidationPipe } from '@app/common/pipes';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
@@ -9,7 +9,9 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Logger,
+  Patch,
   Post,
   Query,
   UseInterceptors,
@@ -18,6 +20,8 @@ import {
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   AccessTokenRequestDto,
+  Auth,
+  ChangePhoneRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   RefreshTokenRequestDto,
@@ -26,6 +30,9 @@ import {
 } from '@app/dto';
 import { AuthService } from './auth.service';
 import { CacheInterceptor } from '@nestjs/cache-manager';
+import { AuthUser } from '@app/common/decorators/auth-user.decorator';
+import { ClientProxy } from '@nestjs/microservices';
+import { AuthCacheInterceptor } from '@app/common/interceptors/auth-cache.interceptor';
 
 /*
 @Request(), @Req()      -- Truy cập toàn bộ đối tượng request (req) từ Express hoặc Fastify.
@@ -55,7 +62,10 @@ export class AuthController {
   private readonly _logger = new Logger(AuthController.name);
 
   //Controllers are responsible for handling incoming requests and returning responses to the client.
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    @Inject(QUEUES.AUTHENTICATOR) private readonly _clientAuth: ClientProxy,
+  ) {}
 
   // --------------------------------------- NESTJS ----------------------------------------//
   // @Public()
@@ -175,6 +185,48 @@ export class AuthController {
   async refreshToken(@Query() query: RefreshTokenRequestDto) {
     this._logger.log(`refreshToken -> query: ${JSON.stringify(query)}`);
     return await this.authService.refreshToken(query);
+  }
+
+  @ApiOperation({ summary: 'Change Phone' })
+  @UsePipes(new MainValidationPipe({ skipMissingProperties: true }))
+  @Patch('v2/change-phone')
+  async changePhone(
+    @Body() body: ChangePhoneRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    console.log({ userId });
+
+    this._logger.log(`changePhone -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<string, { phone: string; userId: string }>(
+      MESSAGE_PATTERN.AUTH.CHANGE_PHONE,
+      {
+        phone: body.phone,
+        userId,
+      },
+    );
+  }
+
+  @ApiOperation({ summary: 'Verify Phone' })
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe({ skipMissingProperties: true }))
+  @Patch('v2/verify-phone')
+  async verifyPhone(@AuthUser() { userId }: Auth) {
+    this._logger.log(`verifyPhone -> userId: ${userId}`);
+    return this._clientAuth.send<string, string>(
+      MESSAGE_PATTERN.AUTH.CONFIRM_PHONE,
+      userId,
+    );
+  }
+
+  @ApiOperation({ summary: 'Get Profile' })
+  @UseInterceptors(AuthCacheInterceptor)
+  @Get('profile')
+  async getProfile(@AuthUser() { userId }: Auth) {
+    this._logger.log(`getProfile -> userId: ${userId}`);
+    return this._clientAuth.send<string, string>(
+      MESSAGE_PATTERN.AUTH.GET_PROFILE,
+      userId,
+    );
   }
 }
 

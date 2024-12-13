@@ -4,9 +4,12 @@ import { Controller, Get } from '@nestjs/common';
 import { MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import {
   Account,
+  Auth,
+  BuySatoshiRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
+  VersionQueryDto,
 } from '@app/dto';
 import { AuthenticatorService } from './authenticator.service';
 import { BuyVNDCRequestDto } from '@app/dto';
@@ -98,5 +101,34 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._partnerService.updateStatusTransaction(accountId, orderId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.GET_TRANSACTION)
+  getPartnerTransactions(
+    @Payload() input: VersionQueryDto & Auth,
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.getTransactionByAccountId(input);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CHANGE_PHONE)
+  async changePhone(
+    @Payload() { phone, userId }: { phone: string; userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.changePhone(phone, userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CONFIRM_PHONE)
+  async confirmPhone(@Payload() userId: string, @Ack() _: RmqContext) {
+    return this._service.confirmPhone(userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.BUY_SATOSHI)
+  async createTransactionForBuyingSatoshi(
+    @Payload() input: BuySatoshiRequestDto & { accountId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.createTransactionForBuyingSatoshi(input);
   }
 }

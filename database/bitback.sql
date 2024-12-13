@@ -97,10 +97,11 @@ CREATE TABLE `account_daily_lucky_wheel_history` (
   `daily_reward_id` VARCHAR(36) NOT NULL
 );
 
+-- Xác định địa chỉ ví cụ thể cho mỗi loại tiền tệ của từng tài khoản
 CREATE TABLE `account_exchange_currency` (
-  `account_id` VARCHAR(36) NOT NULL,
-  `currency_id` VARCHAR(36) NOT NULL,
-  `wallet_address` text NOT NULL,
+  `account_id` VARCHAR(36) NOT NULL, -- Chuỗi 36 ký tự, lưu ID tài khoản, không được để trống.
+  `currency_id` VARCHAR(36) NOT NULL, -- Chuỗi 36 ký tự, lưu ID loại tiền tệ, không được để trống.
+  `wallet_address` text NOT NULL, -- Kiểu text, lưu địa chỉ ví của tài khoản, không được để trống.
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
   PRIMARY KEY (`account_id`, `currency_id`)

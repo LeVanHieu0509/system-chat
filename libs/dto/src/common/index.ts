@@ -33,6 +33,7 @@ export class CommonStatusResponseDto extends CommonResponseDto {
 }
 
 export class PaginationDto {
+  @ApiProperty({ type: Number })
   @Allow()
   @IsInt()
   @Min(1)
@@ -40,6 +41,7 @@ export class PaginationDto {
   @Type(() => Number)
   page: number;
 
+  @ApiProperty({ type: Number })
   @Allow()
   @IsInt()
   @Min(10)

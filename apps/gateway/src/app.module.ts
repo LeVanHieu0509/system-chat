@@ -28,8 +28,11 @@ import { SessionController } from './session.controller';
 import walletQueueProvider from '@app/common/providers/queues/wallet-queue.provider';
 import cashbackQueueProvider from '@app/common/providers/queues/cashback-queue.provider';
 import { CashbackController } from './cashback.controller';
-import { PartnerController } from './partner.controller';
+import { PaymeController } from './payme.controller';
 import { RedlockModule } from '@app/redlock';
+import { VNDCService } from 'libs/plugins';
+import { PartnerController } from './partner.controller';
+import { CronjobController } from './cronjob.controller';
 @Module({
   imports: [
     HttpModule,
@@ -55,13 +58,16 @@ import { RedlockModule } from '@app/redlock';
     RedlockModule.register(),
   ], // HttpModule được import để sử dụng các tính năng về HTTP
   controllers: [
-    PartnerController,
+    PaymeController,
     CashbackController,
     AuthController,
     SessionController,
+    PartnerController,
+    CronjobController,
   ], // module này sẽ chịu trách nhiệm quản lý các route liên quan đến xác thực (auth). Controller nhận các yêu cầu HTTP từ client và chuyển đến AuthService để xử lý.
   providers: [
     JwtStrategy,
+    VNDCService,
     AuthService,
     authenticatorQueueProvider,
     walletQueueProvider,

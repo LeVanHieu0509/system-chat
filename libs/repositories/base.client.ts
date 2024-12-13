@@ -108,6 +108,7 @@ export class BaseClient {
 
     if (NODE_ENV !== 'local') {
       await new Promise((resolve, reject) => {
+        // Chạy một lệnh shell và trả về đầu ra dưới dạng callback.
         const { exec } = require('child_process');
 
         // Lệnh này sử dụng Prisma để áp dụng (deploy) các migrations đã được tạo ra cho cơ sở dữ liệu.

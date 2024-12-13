@@ -23,6 +23,7 @@ type RedlockType = {
   ipn?: boolean;
   thirdParty?: boolean;
 };
+
 @Injectable()
 export class LockInterceptor implements NestInterceptor {
   @Inject(REDLOCK) private readonly _redlock: Redlock;

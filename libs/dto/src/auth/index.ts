@@ -607,6 +607,7 @@ export type DailyRewardCaching = {
 };
 
 export class VerifyPasscodeSigninRequestDto extends PasscodeDto {
+  @ApiProperty({ type: String })
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID })
   readonly token: string;
 }

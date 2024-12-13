@@ -25,6 +25,10 @@ export class RedlockModule {
     const redisClients = _redisClients.concat(
       clientOptions.map((option) => new IOClient(option)),
     );
+
+    // Khóa một tài nguyên trong thời gian nhất định để các instance khác không thể truy cập đồng thời.
+    // Đảm bảo tính toàn vẹn dữ liệu khi nhiều service cùng truy cập vào một tài nguyên.
+    // Hạn chế số lượng yêu cầu đồng thời trên một tài nguyên cụ thể.
     const redlock = new Redlock(redisClients, redlockOptions);
     const providers = [{ provide: REDLOCK, useValue: redlock }];
 

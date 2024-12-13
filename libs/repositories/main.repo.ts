@@ -46,13 +46,9 @@ export class MainRepo
 {
   // chạy các truy vấn SQL thủ công
   // Điều này rất hữu ích khi bạn cần tối ưu hóa truy vấn hoặc thực hiện các tác vụ đặc thù mà ORM không hỗ trợ
-  sql<T = unknown>(
-    sql: TemplateStringsArray | string,
-    ...values: any[]
-  ): Promise<T> {
-    // Convert string to Prisma.Sql if necessary
-    const query = typeof sql === 'string' ? Prisma.sql`${sql}` : sql;
-    return this._client.$queryRaw<T>(query, ...values);
+  sql<T extends any = any>(sql: any, ...values: any[]): Promise<T> {
+    // Sử dụng `$queryRaw` với template literal và truyền các giá trị
+    return this._client.$queryRawUnsafe<T>(sql, ...values);
   }
 
   getAccount() {

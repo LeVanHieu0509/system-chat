@@ -7,6 +7,10 @@ export enum QUEUES {
   BITLOT = 'BITLOT_QUEUE',
 }
 
+export enum KAFKA {
+  ORDER = 'ORDER_QUEUE',
+}
+
 export enum MobileVersion {
   '1.3.5' = '1.3.5',
   '1.4.1' = '1.4.1',
@@ -206,6 +210,7 @@ export const MESSAGE_PATTERN = {
     INQUIRY: 'bitback-cashback-exchange-v3-inquiry',
     VERIFY_PASSCODE: 'bitback-cashback-exchange-v3-verify-passcode',
     SUBMIT: 'bitback-cashback-exchange-v3-submit',
+    APPROVED: 'bitback-cashback-approved-v3-access-trader',
   },
   CAMPAIGN: {
     DETAIL: 'bitback-campaign-detail',
@@ -223,6 +228,7 @@ export const MESSAGE_PATTERN = {
     DEPOSIT_PAYME_IPN: 'bitback-deposit-payme-ipn',
     UPDATE_STATUS_TRANSACTION: 'bitback-update-status-transaction',
     KYC_IPN: 'bitback-kyc-ipn',
+    BUY_SATOSHI: 'bitback-buy-satoshi',
   },
   QUEUE_CHICKEN_FARM: {
     GET_MASTER_CONFIG: 'bitback-chicken-farm-get-master-config',
@@ -685,3 +691,7 @@ export enum BONUS_EVENT_STATUS {
   PROCESSING = 'PROCESSING',
   FINISH = 'FINISH',
 }
+
+export const KAFKA_PATTERN = {
+  TEST: 'test_kafka',
+};

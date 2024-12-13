@@ -5,18 +5,28 @@ import {
   Public,
   QUEUES,
 } from '@app/common';
-import { BuyVNDCRequestDto } from '@app/dto';
+import { AuthUser } from '@app/common/decorators/auth-user.decorator';
+import { VALIDATE_MESSAGE } from '@app/common/validate-message';
 import {
+  Auth,
+  BuyVNDCInquiryRequestDto,
+  BuyVNDCRequestDto,
+  VersionQueryDto,
+} from '@app/dto';
+import { UtilsService } from '@app/utils';
+import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
+  Get,
   HttpCode,
   HttpStatus,
   Inject,
   Logger,
   Param,
-  Patch,
   Post,
+  Query,
   UsePipes,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
@@ -33,13 +43,22 @@ export class PartnerController {
   private readonly _logger = new Logger(PartnerController.name);
 
   constructor(
-    @Inject(QUEUES.CASHBACK) private readonly _clientCashback: ClientProxy,
     @Inject(QUEUES.AUTHENTICATOR) private readonly _clientAuth: ClientProxy,
+    @Inject(QUEUES.CASHBACK) private readonly _clientCashback: ClientProxy,
   ) {}
+
+  /*
+    1. Tạo giao dịch mua VNDC trong hệ thống (bao gồm ghi nhận giao dịch và xử lý trạng thái giao dịch).
+    2. Thực hiện các bước cần thiết để đảm bảo giao dịch được thực hiện đúng cách.
+  */
 
   // @KYC()
   @HttpCode(HttpStatus.OK)
   @UsePipes(new MainValidationPipe())
+
+  // Sử dụng decorator @RedlockMeta để khóa logic xử lý giao dịch
+  // nếu người dùng đang có giao dịch khác đang được xử lý (trạng thái PENDING).
+
   // @RedlockMeta({
   //   key: MESSAGE_PATTERN.VNDC.CREATE_BUY_VNDC_TRANSACTION,
   //   error: new BadRequestException([
@@ -49,18 +68,17 @@ export class PartnerController {
   //     },
   //   ]),
   // })
-  @Public()
   @ApiOperation({ summary: 'Buy VNDC' })
   @ApiBody({ type: BuyVNDCRequestDto })
   // @UseInterceptors(LockInterceptor)
   @Post('buy-vndc')
   async createBuyVNDCTransaction(
     @Body() body: BuyVNDCRequestDto,
-    // @AuthUser() { userId = '032dda8b-9a62-4d2d-9d99-c21ff44695e7' }: Auth,
+    @AuthUser() { userId }: Auth,
   ) {
-    this._logger.log(`buyVNDC -> body: ${JSON.stringify(body)}`);
-
-    let userId = '032dda8b-9a62-4d2d-9d99-c21ff44695e7';
+    this._logger.log(`buyVNDC -> body: ${JSON.stringify(body.storeId)}`);
+    // storeId: Mỗi partner khi trở thành thương lái thì sẽ được tạo cho 1 mã storeId để nhận diện được
+    // User đó là thương lái nào?
 
     return this._clientAuth.send<
       number,
@@ -71,10 +89,43 @@ export class PartnerController {
     });
   }
 
-  @ApiOperation({ summary: 'Cancel Transaction buy VNDC' })
+  /*
+    1. Thực hiện kiểm tra thông tin ban đầu (inquiry) cho giao dịch mua VNDC, 
+    2. bao gồm kiểm tra tài khoản VNDC của người nhận có hợp lệ hay không.
+  */
+
+  @ApiOperation({ summary: 'Buy VNDC Inquire' })
+  @HttpCode(HttpStatus.OK)
+  // @UsePipes(new MainValidationPipe())
+  @Post('buy-vndc/inquiry')
+  async buyVNDCInquiry(
+    @Body() body: BuyVNDCInquiryRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.debug(`buyVNDCInquiry -> body: ${JSON.stringify(body)}`);
+    // check account VNDC valid
+    // const receiver = await this._vndc.getAccountVNDC(body.vndcReceiver);
+    const receiver = { name: 'Le Van Hieu', kyc: true, keywords: '123123' };
+
+    if (!receiver || !receiver.kyc) {
+      throw new BadRequestException([
+        {
+          field: 'vndcReceiver',
+          message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID,
+        },
+      ]);
+    }
+    const orderId = UtilsService.getInstance().getDbDefaultValue().id;
+    this._clientCashback.emit<
+      boolean,
+      BuyVNDCInquiryRequestDto & { accountId: string; orderId: string }
+    >(MESSAGE_PATTERN.VNDC.BUY_VNDC, { ...body, accountId: userId, orderId });
+    return { ...body, orderId: orderId.replace(/[-]/gm, '') };
+  }
+
   @Public()
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new MainValidationPipe())
+  // @UsePipes(new MainValidationPipe())
   @Delete('cancel-transaction' + PATH_CONTAIN_ID)
   async cancelTransaction(@Param('id') id: string) {
     await firstValueFrom(
@@ -83,26 +134,6 @@ export class PartnerController {
         id,
       ),
     );
-
     return { status: true };
-  }
-
-  @ApiOperation({ summary: 'Confirm OrderId Payment Transaction buy VNDC' })
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  @UsePipes(new MainValidationPipe())
-  @Patch('partner-transaction/:id')
-  async updateStatusTransaction(
-    @Param('id') id: string,
-    // @AuthUser() { userId }: Auth,
-  ) {
-    let userId = '032dda8b-9a62-4d2d-9d99-c21ff44695e7';
-    return this._clientAuth.send<
-      boolean,
-      { orderId: string; accountId: string }
-    >(MESSAGE_PATTERN.VNDC.UPDATE_STATUS_TRANSACTION, {
-      orderId: id,
-      accountId: userId,
-    });
   }
 }

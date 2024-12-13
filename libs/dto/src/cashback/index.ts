@@ -97,29 +97,36 @@ export class ExchangeRequestV2Dto extends ExchangeQueryInquiryV2Dto {
 }
 
 export class ExchangeV3InquiryDto {
+  @ApiProperty({ type: String })
   @IsNotEmpty()
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID })
   readonly receiverInfo: string;
 
+  @ApiProperty({ enum: EXCHANGE_METHOD })
   @IsEnum(EXCHANGE_METHOD)
   readonly method: EXCHANGE_METHOD;
 
+  @ApiProperty({ enum: CURRENCY_CODE })
   @IsIn([CURRENCY_CODE.VNDC, CURRENCY_CODE.BBC])
   readonly currency: CURRENCY_CODE;
 
+  @ApiProperty({ type: Number })
   @IsNumber(undefined, { message: VALIDATE_MESSAGE.CASHBACK.AMOUNT_INVALID })
   readonly amount: number;
 }
 
 export class ExchangeV3VerifyPasscodeDto {
+  @ApiProperty({ type: String })
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID })
   readonly token: string;
 
+  @ApiProperty({ type: String })
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.PASSCODE_INVALID })
   readonly passcode: string;
 }
 
 export class ExchangeV3SubmitDto extends ExchangeV3InquiryDto {
+  @ApiProperty({ type: String })
   @IsString({ message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID })
   readonly token: string;
 }
@@ -269,9 +276,11 @@ export type VNDCSendOffChainBody = {
 };
 
 export class BuyVNDCInquiryRequestDto {
+  @ApiProperty({ type: String })
   @IsPhoneNumber('VN', { message: VALIDATE_MESSAGE.ACCOUNT.PHONE_INVALID })
   readonly vndcReceiver: string;
 
+  @ApiProperty({ type: Number })
   @IsNumber(undefined, { message: VALIDATE_MESSAGE.CASHBACK.AMOUNT_INVALID })
   readonly amount: number;
 }
@@ -297,15 +306,19 @@ export class PaymeDepositDto {
 }
 
 export class BuySatoshiRequestDto {
+  @ApiProperty({ type: Number })
   @IsNumber(undefined, { message: VALIDATE_MESSAGE.CASHBACK.AMOUNT_INVALID })
   readonly amount: number;
 
+  @ApiProperty({ type: Number })
   @IsNumber(undefined, { message: VALIDATE_MESSAGE.CASHBACK.METHOD_INVALID })
   @IsEnum(MethodType, { message: VALIDATE_MESSAGE.CASHBACK.METHOD_INVALID })
   readonly methodType: number;
 
+  @ApiProperty({ type: Number })
   amountExchange: number;
 
+  @ApiProperty({ type: String })
   storeId: string;
 }
 
@@ -320,6 +333,7 @@ export class BuyVNDCRequestDto {
   readonly methodType: number;
 
   @ApiProperty({ type: String })
+  @IsString()
   storeId: string;
 }
 

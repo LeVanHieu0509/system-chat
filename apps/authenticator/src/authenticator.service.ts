@@ -69,9 +69,9 @@ export class AuthenticatorService {
   async signInWithGoogle(accessToken: string) {
     // handle third party to get info from google.
     const googleAccount: Account = {
-      email: UtilsService.getInstance().randomEmail(), //UtilsService.getInstance().randomEmail(),
+      email: 'levanhieu@outlook.com', //UtilsService.getInstance().randomEmail(),
       emailVerified: true,
-      googleId: UtilsService.getInstance().randomToken(12), // UtilsService.getInstance().randomToken(12),
+      googleId: '12123123332122', // UtilsService.getInstance().randomToken(12),
       avatar: 'https://levanhieu@',
       fullName: 'Le Van hieu',
     };
@@ -327,8 +327,8 @@ export class AuthenticatorService {
       ? UtilsService.getInstance().toIntlPhone(phone)
       : email;
     const cachingKey = MESSAGE_PATTERN.AUTH.FIND_ACCOUNT + `${key}-${profile}`;
-
     let account = await CachingService.getInstance().get(cachingKey);
+
     if (account) return account as Account;
     else {
       account = await this._repo.getAccount().findFirst({
@@ -799,6 +799,63 @@ export class AuthenticatorService {
     // if (referralByInfo.deviceToken) this._notification.sendNotifyNewAccount([referralBy], data[1].description);
   }
 
+  async confirmPhone(id: string) {
+    this._logger.log(`confirmPhone id: ${id}`);
+    const account = await this._repo
+      .getAccount()
+      .findUnique({ where: { id }, select: { histories: true } });
+
+    const { histories: accountHistories } = account;
+    const { histories = [] } =
+      (accountHistories as { histories: Record<string, unknown>[] }) || {};
+    histories.push({
+      updatedAt: new Date().toISOString(),
+      reason: REASON.CONFIRM_PHONE,
+    });
+
+    await this._repo.getAccount().update({
+      where: { id },
+      data: { phoneVerified: true, histories: account.histories },
+      select: { updatedAt: true },
+    });
+    return { status: true };
+  }
+
+  async changePhone(phoneInput: string, id: string) {
+    this._logger.log(`confirmEmail id: ${id} phone: ${phoneInput}`);
+
+    const phone = UtilsService.getInstance().toIntlPhone(phoneInput);
+
+    const phoneExist = await this._repo
+      .getAccount()
+      .count({ where: { phone } });
+    if (phoneExist) {
+      throw new BadRequestException([
+        { field: 'phone', message: VALIDATE_MESSAGE.ACCOUNT.PHONE_EXIST },
+      ]);
+    }
+
+    const account = await this._repo
+      .getAccount()
+      .findUnique({ where: { id }, select: { histories: true } });
+    const { histories: accountHistories } = account;
+    const { histories = [] } =
+      (accountHistories as { histories: Record<string, unknown>[] }) || {};
+    histories.push({
+      updatedAt: new Date().toISOString(),
+      reason: REASON.CHANGE_PHONE,
+    });
+
+    await this._repo.getAccount().update({
+      where: { id },
+      data: { phone, phoneVerified: false, histories: account.histories },
+      select: { updatedAt: true },
+    });
+    CachingService.getInstance().delete(`PRE-CHECK-PHONE-${phoneInput}`);
+
+    return { status: true };
+  }
+
   async verifyPasscode() {}
   async checkOTP() {}
   async checkPhone() {}
@@ -808,8 +865,6 @@ export class AuthenticatorService {
   async editAccount() {}
   async changeEmail() {}
   async confirmEmail() {}
-  async changePhone() {}
-  async confirmPhone() {}
   async syncContacts() {}
   async getContacts() {}
   async settingProfile() {}
