@@ -239,6 +239,35 @@ export class VNDCService {
       },
       transactionNumber,
     };
-    return output;
+
+    let example: Transaction = {
+      amount: '1000', // Số tiền giao dịch
+      currency: {
+        name: 'VNDC', // Tên đầy đủ của tiền tệ
+        symbol: 'VNDC', // Ký hiệu của tiền tệ
+      },
+      date: '2024-12-14T10:30:00Z', // Ngày giờ giao dịch (ISO 8601 format)
+      display: 'Transfer 1000 VND from BITBACK to USER', // Mô tả giao dịch
+      id: 'txn_12345', // ID duy nhất của giao dịch
+      from: {
+        kind: 'organization', // Loại người gửi (e.g., "individual" hoặc "organization")
+        user: {
+          id: 'user_1', // ID của người gửi
+          display: 'BITBACK', // Tên đầy đủ của người gửi
+          shortDisplay: 'BITBACK', // Tên ngắn gọn của người gửi
+        },
+      },
+      to: {
+        kind: 'individual', // Loại người nhận (e.g., "individual" hoặc "organization")
+        user: {
+          id: 'user_2', // ID của người nhận
+          display: 'Bob Smith', // Tên đầy đủ của người nhận
+          shortDisplay: 'Bob', // Tên ngắn gọn của người nhận
+        },
+      },
+      transactionNumber: 'TXN20241214001', // Số giao dịch
+    };
+
+    return example;
   }
 }

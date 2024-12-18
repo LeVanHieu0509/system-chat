@@ -767,11 +767,11 @@ CREATE TABLE `partner_transaction` (
 
 CREATE TABLE `pool_bbc_history` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `in` numeric(65,30) NOT NULL DEFAULT 0,
-  `out` numeric(65,30) NOT NULL DEFAULT 0,
-  `last` numeric(65,30) NOT NULL DEFAULT 0,
-  `time` VARCHAR(10) NOT NULL DEFAULT ('00:00:00'),
-  `date` VARCHAR(10) NOT NULL DEFAULT ('01/01/1970'),
+  `in` numeric(65,30) NOT NULL DEFAULT 0, -- Số lượng BBC vào
+  `out` numeric(65,30) NOT NULL DEFAULT 0, -- Số lượng BBC ra
+  `last` numeric(65,30) NOT NULL DEFAULT 0, -- Giá trị BBC cuối cùng
+  `time` VARCHAR(10) NOT NULL DEFAULT ('00:00:00'), -- Thời gian giao dịch, dạng HH:MM:SS.
+  `date` VARCHAR(10) NOT NULL DEFAULT ('01/01/1970'), -- Ngày giao dịch, dạng DD/MM/YYYY.
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
   `pool_id` VARCHAR(36) NOT NULL
@@ -779,19 +779,19 @@ CREATE TABLE `pool_bbc_history` (
 
 CREATE TABLE `pool_config` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `revenue` double precision NOT NULL DEFAULT 30,
-  `min` integer NOT NULL DEFAULT 10000,
-  `max` integer NOT NULL DEFAULT 100000,
+  `revenue` double precision NOT NULL DEFAULT 30, -- Doanh thu của pool 
+  `min` integer NOT NULL DEFAULT 10000, -- Số tiền tối thiểu có thể giao dịch trong pool
+  `max` integer NOT NULL DEFAULT 100000, -- Số tiền tối đa có thể giao dịch trong pool 
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `updated_id` VARCHAR(36)
+  `updated_id` VARCHAR(36) -- ID của người dùng hoặc hệ thống đã cập nhật thông tin này
 );
 
 CREATE TABLE `pool_egg_history` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `in` numeric(65,30) NOT NULL DEFAULT 0,
-  `out` numeric(65,30) NOT NULL DEFAULT 0,
-  `last` numeric(65,30) NOT NULL DEFAULT 0,
+  `in` numeric(65,30) NOT NULL DEFAULT 0, -- Số lượng trứng vào
+  `out` numeric(65,30) NOT NULL DEFAULT 0, -- Số lượng trứng ra 
+  `last` numeric(65,30) NOT NULL DEFAULT 0, -- Giá trị trứng cuối cùng
   `time` VARCHAR(10) NOT NULL DEFAULT ('00:00:00'),
   `date` VARCHAR(10) NOT NULL DEFAULT ('01/01/1970'),
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
@@ -801,20 +801,20 @@ CREATE TABLE `pool_egg_history` (
 
 CREATE TABLE `pool_rate_history` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `value` double precision NOT NULL DEFAULT 0,
-  `time` VARCHAR(10) NOT NULL DEFAULT ('00:00:00'),
-  `date` VARCHAR(10) NOT NULL DEFAULT ('01/01/1970'),
+  `value` double precision NOT NULL DEFAULT 0, -- Giá trị tỷ lệ 
+  `time` VARCHAR(10) NOT NULL DEFAULT ('00:00:00'), -- Thời gian giao dịch
+  `date` VARCHAR(10) NOT NULL DEFAULT ('01/01/1970'), -- Ngày giao dịch
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `pool_id` VARCHAR(36) NOT NULL
 );
 
 CREATE TABLE `pool_value` (
   `id` VARCHAR(36) PRIMARY KEY NOT NULL DEFAULT (UUID()),
-  `egg_value` numeric(65,30) NOT NULL DEFAULT 1000000000,
-  `bbc_value` numeric(65,30) NOT NULL DEFAULT 10000000,
+  `egg_value` numeric(65,30) NOT NULL DEFAULT 1000000000, -- Giá trị của trứng trong pool
+  `bbc_value` numeric(65,30) NOT NULL DEFAULT 10000000, -- Giá trị của BBC trong pool
   `created_at` timestamp(3) NOT NULL DEFAULT (CURRENT_TIMESTAMP),
   `updated_at` timestamp(3),
-  `updated_id` VARCHAR(36)
+  `updated_id` VARCHAR(36) -- ID của người dùng hoặc hệ thống đã cập nhật thông tin này
 );
 
 CREATE TABLE `referral_ranking` (

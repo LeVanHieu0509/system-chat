@@ -145,6 +145,10 @@ export class OnusService {
         brokerId,
       );
 
+      this._logger.info(
+        `transaction of onus fake --> ${JSON.stringify(transaction)}`,
+      );
+
       const {
         amount: tranAmount,
         currency,
@@ -158,7 +162,7 @@ export class OnusService {
       const txDate = UtilsService.getInstance().toDayJs(date);
       const now = UtilsService.getInstance().toDayJs(new Date());
 
-      // So sánh các dữ liệu giao dịch từ hệ thống ONUS và hệ thống của bạn:
+      // So sánh các dữ liệu giao dịch từ hệ thống ONUS và input hệ thống của bạn:
       if (
         transactionNumber !== input.transactionNumber ||
         currency.symbol !== input.currency ||
@@ -191,6 +195,11 @@ export class OnusService {
       }
 
       // Kiểm tra số dư của broker
+      /*
+        1. Khi user nạp tiền thông qua onus thì tiền sẽ được trừ từ account broker (Account BitBack là pool)
+        2. Cộng tiền vào cho User
+      */
+
       const brokerAmount = await this._repo.getCbAvailable().findFirst({
         where: {
           currency: { code: currency.symbol, status: STATUS.ACTIVE },
