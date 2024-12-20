@@ -25,3 +25,13 @@ export interface UserDepositPayloadDto {
   partnerTransaction: Prisma.PartnerTransactionUncheckedCreateInput;
   version?: number;
 }
+
+export interface EditPoolValueDto {
+  poolId: string;
+
+  eggValue: number;
+
+  bbcValue: number;
+
+  updatedId: string;
+}

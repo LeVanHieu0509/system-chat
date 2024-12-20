@@ -35,8 +35,8 @@
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
     "typeorm:migration:generate": "npm run typeorm -- migration:generate -n",
     "typeorm:migration:run": "npm run typeorm -- migration:run",
-    "dev:local": "yarn dev & yarn dev:auth & yarn dev:wallet & yarn dev:cashback & yarn dev:cronjob & yarn dev:thirdparty & yarn dev:kafka & yarn dev:order",
-    "build:local": "yarn build:auth & yarn build:gateway & yarn dev:wallet & yarn dev:cronjob"
+    "dev:local": "yarn dev & yarn dev:auth & yarn dev:wallet & yarn dev:cms & yarn dev:cashback",
+    "build:local": "yarn build:auth & yarn build:gateway & yarn build:wallet & yarn build:cronjob"
   },
   "dependencies": {
     "@apollo/server": "^4.9.2",
@@ -57,6 +57,7 @@
     "@nestjs/swagger": "^7.1.8",
     "@nestjs/typeorm": "^10.0.2",
     "@prisma/client": "^5.20.0",
+    "@sendgrid/mail": "^8.1.4",
     "add": "^2.0.6",
     "amqp-connection-manager": "^4.1.14",
     "amqplib": "^0.10.4",
