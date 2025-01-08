@@ -89,6 +89,14 @@ const HEADER = { Authorization: `Token ${ACCESS_TRACE_KEY_V2}` };
 // Định nghĩa số lượng giao dịch tối đa được xử lý mỗi lần, nhằm tránh quá tải hệ thống.
 const MAX_ITEMS = 50;
 
+/*
+  Quy trình hoạt động:
+
+  1. Nhà cung cấp dịch vụ/sản phẩm (Advertiser) đăng ký chiến dịch (Campaign) trên AccessTrade.
+  2. Các Publisher quảng bá sản phẩm/dịch vụ bằng cách sử dụng link tiếp thị liên kết (Affiliate Link) do AccessTrade cung cấp.
+  3. Khi khách hàng mua hàng hoặc hoàn thành hành động cụ thể (như đăng ký, điền form), AccessTrade sẽ ghi nhận giao dịch đó.
+  4. AccessTrade phân phối hoa hồng từ nhà cung cấp đến Publisher.
+*/
 @Injectable()
 export class AccessTradeJob {
   private readonly logger = new Logger('AccessTradeJob');
@@ -104,10 +112,22 @@ export class AccessTradeJob {
   }
 
   // Lấy Giao Dịch Đã Được Chấp Nhận từ AccessTrade
+  // Chạy mỗi 5 giờ tại phút thứ 15 (0 15 */5 * * *).
+
+  /*
+    Giây (0): Chạy tại giây thứ 0.
+    Phút (15): Chạy tại phút thứ 15.
+    Giờ (*)/5): Chạy mỗi 5 giờ.
+    Ngày (*): Mỗi ngày.
+    Tháng (*): Mỗi tháng.
+    Thứ trong tuần (*): Mỗi ngày trong tuần.
+  */
+
+  // Cronjob sẽ chạy vào các giờ chia hết cho 5
   @Cron('0 15 */5 * * *', { timeZone: TIME_ZONE_VN })
 
-  // Lấy tất cả các giao dịch đã được chấp nhận
   // (status: APPROVED) từ AccessTrade và xử lý chúng cho mục đích hoàn tiền và chiến dịch.
+  // Gửi request đến API AccessTrade để lấy các giao dịch trong 1 ngày với trạng thái APPROVED
   async getTransactionFromAccessTradeOnApproved() {
     // if (!IS_PRODUCTION) return;
     this.logger.log(`getTransactionFromAccessTradeOnApprovedV2`);
@@ -124,6 +144,7 @@ export class AccessTradeJob {
       day: 1,
     });
 
+    // https://api.accesstrade.com/transactions?since=2023-12-26T00:00:00.000Z&until=2023-12-27T00:00:00.000Z&status=1
     console.log({ url });
 
     try {
@@ -202,6 +223,8 @@ export class AccessTradeJob {
     );
   }
 
+  // Chạy mỗi 5 giờ tại phút thứ 30 (0 30 */5 * * *).
+  // Xử lý giao dịch trạng thái "Hold" từ AccessTrade
   @Cron('0 30 */5 * * *', { timeZone: TIME_ZONE_VN })
   async getTransactionFromAccessTradeOnHold() {
     if (!IS_PRODUCTION) return;
@@ -212,6 +235,7 @@ export class AccessTradeJob {
     );
 
     // 1. get all transaction from AccessTrade (for campaign processing)
+    // Gửi request đến API AccessTrade để lấy các giao dịch trong trạng thái HOLD trong 1 ngày.
     const url = this.getAccessTradeUrl({
       current,
       status: ACCESS_TRADE_TRANS_STATUS.HOLD,
@@ -236,6 +260,7 @@ export class AccessTradeJob {
       // 2. get exchange rate to convert VND to BTC
       const { rateValue, currencyId } = await this.getExchangeRateSAT();
       // 3. handle transaction
+      // Chuyển các giao dịch này vào trạng thái PROCESSING
       for (const transaction of transactions.data) {
         await this.insertCbTransPending({
           transaction,
@@ -257,6 +282,8 @@ export class AccessTradeJob {
     );
   }
 
+  // Chạy mỗi 5 giờ tại phút thứ 45 (0 45 */5 * * *)
+  // Lấy các giao dịch đang trong trạng thái PROCESSING hoặc APPROVED từ hệ thống.
   @Cron('0 45 */5 * * *', { timeZone: TIME_ZONE_VN })
   async checkStatusTransactionFromAccessTrade() {
     if (!IS_PRODUCTION) return;
@@ -700,6 +727,9 @@ export class AccessTradeJob {
     });
   }
 
+  /*
+    1. Tạo URL để lấy giao dịch từ AccessTrade trong một khoảng thời gian nhất định
+  */
   private getAccessTradeUrl(options: AccessTradeUrlOptions) {
     const { current, day, status, since = new Date(current) } = options;
     const until = current.toISOString();

@@ -5,5 +5,7 @@ spec:
   selector: { app: trustpay-be-wallet }
   ports:
     - name: http
+      # Đây là cổng mà Service lắng nghe và expose ra bên ngoài.
+      # Các ứng dụng khác trong cluster khi gửi request đến Service sẽ gửi vào cổng này
       port: 80
       targetPort: http

@@ -5,5 +5,7 @@ spec:
   selector: { app: trustpay-be-gateway }
   ports:
     - name: http
+      # Đây là cổng mà Service lắng nghe và expose ra bên ngoài. Và tại vì Ingress Controller chuyển request đến Service Gateway (cổng 80).
+      # Service Gateway chuyển request đến container của ứng dụng Gateway.
       port: 80
       targetPort: http

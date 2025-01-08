@@ -1,7 +1,10 @@
+# nó tạo một Service để quản lý và expose các Pod của ứng dụng trustpay-be-auth
+
 apiVersion: v1
 kind: Service
 metadata: { name: trustpay-be-auth }
 spec:
+  # Chỉ định các Pod nào sẽ được Service này quản lý.
   selector: { app: trustpay-be-auth }
   ports:
     - name: http

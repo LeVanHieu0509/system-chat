@@ -1,3 +1,8 @@
+###
+# image chung có thể sử dụng cho tất cả các service.
+
+###
+
 ###################################
 # Base stage
 ###################################
@@ -12,6 +17,9 @@ RUN yarn prisma generate
 
 ###################################
 # Build stage
+# Kết quả biên dịch của từng service sẽ được lưu trong thư mục dist.
+# Image chứa mã nguồn và bản build của tất cả các service, làm tăng kích thước.
+# Nếu một service thay đổi, bạn phải build lại toàn bộ image.
 ###################################
 
 FROM base AS dist
@@ -45,6 +53,7 @@ COPY . /app
 COPY --from=dist /app/dist /app/dist
 COPY --from=node_modules /app/node_modules /app/node_modules
 
+# Sử dụng ARG SERVICE_NAME để chỉ định service cần chạy
 ARG SERVICE_NAME
 ENV SERVICE_NAME=$SERVICE_NAME
 

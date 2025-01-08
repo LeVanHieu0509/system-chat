@@ -17,6 +17,6 @@ spec:
             - name: SERVICE_NAME
               value: bitfarm
           # TODO: review this
-          resources:
+          resources:xq
             requests: { cpu: 100m, memory: 128Mi }
             limits: { cpu: '2', memory: '4Gi' }

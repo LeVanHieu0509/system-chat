@@ -29,3 +29,19 @@
 - nghĩa là mỗi khi có yêu cầu GET tới endpoint này, kết quả của yêu cầu sẽ được lưu lại vào bộ nhớ đệm.
 - CacheInterceptor giúp giảm tải và tăng tốc độ phản hồi cho API của bạn bằng cách
   lưu kết quả của các yêu cầu lặp lại trong một khoảng thời gian ngắn
+
+Ngoài ra:
+
+Khi nào sử dụng Interceptor?
+Khi bạn cần:
+
+1. Xử lý logic trước hoặc sau controller.
+2. Ghi log hoặc đo thời gian xử lý.
+3. Format lại response cho client.
+4. Kiểm tra phiên bản API hoặc thêm metadata vào request/response.
+
+Example:
+
+1. convert request - Check version
+2. convert response response phân trang, 404
+3. redlock

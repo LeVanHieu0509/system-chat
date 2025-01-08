@@ -11,7 +11,7 @@ spec:
         - name: main
           image: trustpay-be
           imagePullPolicy: IfNotPresent
-          ports: [{ name: http, containerPort: 30000 }]
+          ports: [{ name: http, containerPort: 80 }]
           envFrom: [{ secretRef: { name: 'trustpay-env' } }]
           env:
             - name: SERVICE_NAME

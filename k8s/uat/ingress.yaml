@@ -18,12 +18,13 @@ spec:
       http:
         paths:
           - pathType: Prefix
+            # Định tuyến toàn bộ các request (path: '/') đến service: trustpay-be-gateway
             path: '/'
             backend:
               service:
                 # Gửi yêu cầu đến dịch vụ trustpay-be-gateway.
                 name: trustpay-be-gateway
-                # Dùng cổng HTTP của dịch vụ
+                # Sử dụng cổng HTTP của service (được định nghĩa trong file Service trustpay-be-gateway).
                 port: { name: http }
 
     # rule 2

@@ -1,16 +1,21 @@
+# File này chỉ mở rộng hoặc ghi đè cấu hình trên ../base.
+
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
+# Kế thừa tài nguyên từ một thư mục hoặc file khác (../base), các Deployment, Service, ConfigMap chung cho ứng dụng.
 bases: [../base]
 
+# Liệt kê các tài nguyên bổ sung (Ingress, ConfigMap, Secret, v.v.), Ở đây, file ingress.yaml chứa cấu hình định tuyến HTTP/HTTPS (Ingress) cho ứng dụng.
 resources:
   - ./ingress.yaml
 
+# Tất cả tài nguyên trong file này sẽ được triển khai vào namespace backend
 namespace: backend
 # Cấu hình số lượng replicas (bản sao) cho các thành phần khác nhau của ứng dụng
 # Việc cấu hình số lượng bản sao cho từng thành phần giúp đảm bảo tính sẵn sàng
 # và khả năng xử lý tải cao của hệ thống trong môi trường sản xuất
 
+# Chỉ định số lượng bản sao (replicas) cho từng thành phần ứng dụng
 replicas:
   - name: trustpay-be-auth
     count: 3

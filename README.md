@@ -102,3 +102,6 @@ Nest is [MIT licensed](LICENSE).
 }
 }
 }
+
+// sudo lsof -i :
+//sudo kill -9

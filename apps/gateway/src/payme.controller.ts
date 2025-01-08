@@ -1,23 +1,14 @@
 import {
-  KYC,
   MainValidationPipe,
   MESSAGE_PATTERN,
   PATH_CONTAIN_ID,
-  Public,
   QUEUES,
   RedlockMeta,
 } from '@app/common';
 import { AuthUser } from '@app/common/decorators/auth-user.decorator';
 import { LockInterceptor } from '@app/common/interceptors/lock.interceptor';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
-import {
-  Auth,
-  BuySatoshiRequestDto,
-  BuyVNDCInquiryRequestDto,
-  BuyVNDCRequestDto,
-  VersionQueryDto,
-} from '@app/dto';
-import { UtilsService } from '@app/utils';
+import { Auth, BuySatoshiRequestDto, VersionQueryDto } from '@app/dto';
 import {
   BadRequestException,
   Body,
@@ -36,8 +27,7 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { VNDCService } from 'libs/plugins';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { firstValueFrom } from 'rxjs';
 
 @ApiTags('PayMe')
@@ -105,22 +95,38 @@ export class PaymeController {
   // @KYC()
   @HttpCode(HttpStatus.OK)
   @UsePipes(new MainValidationPipe())
-  // @RedlockMeta({
-  //   key: MESSAGE_PATTERN.VNDC.BUY_SATOSHI,
-  //   error: new BadRequestException([
-  //     {
-  //       field: 'account',
-  //       message: VALIDATE_MESSAGE.CASHBACK.HAS_TRANSACTION_PENDING,
-  //     },
-  //   ]),
-  // })
-  // @UseInterceptors(LockInterceptor)
+
+  // sử dụng cơ chế kiểm tra trước khi cho phép giao dịch. Đây là đặc điểm của khóa bi quan
+  @RedlockMeta({
+    key: MESSAGE_PATTERN.VNDC.BUY_SATOSHI,
+    error: new BadRequestException([
+      {
+        field: 'account',
+        message: VALIDATE_MESSAGE.CASHBACK.HAS_TRANSACTION_PENDING, // Nếu đã khóa: ném lỗi (meta.error).
+      },
+    ]),
+  })
+  @UseInterceptors(LockInterceptor)
   @Post('buy-satoshi')
   async buySatoshi(
     @Body() body: BuySatoshiRequestDto,
     @AuthUser() { userId }: Auth,
   ) {
     this._logger.debug(`buySatoshi -> body: ${JSON.stringify(body)}`);
+
+    /*
+      1. Sử dụng decorator RedlockMeta để tạo key red lock
+      2. Dùng UseInterceptors LockInterceptor để khoá bi quan lại sử dụng thư viện redlock
+      3. Dùng key đó để khoá đoạn logic đó lại theo key user, đảm bảo mỗi user chỉ được truy cập vào tài nguyên ở 1 thời điểm
+      4. Khóa chỉ được giải phóng khi đoạn logic send message này hoàn thành
+      5. Thành công thì trả về kết quả, còn thất bại thì trả về exception
+      6. Sau khi đoạn logic xử lý xong
+          - Nếu thành công: Interceptor gọi lock.unlock() trong tap
+          - Nếu thất bại: Interceptor gọi lock.unlock() trong catchError để giải phóng khóa.
+      7. Nếu như có 100 user request đồng thời thì request đầu tiên sẽ giữ được khoá và 99 request còn lại sẽ bị từ chối đến khi nào khoá được giải phóng thì mới ok
+      8. 99 request đó có thể được đưa vào hàng đợi để chờ xử lý.
+    */
+
     return this._clientAuth.send<
       number,
       BuySatoshiRequestDto & { accountId: string }

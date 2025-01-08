@@ -23,7 +23,7 @@ spec:
           imagePullPolicy: IfNotPresent # Đặt là IfNotPresent, Kubernetes sẽ chỉ tải lại hình ảnh nếu nó chưa tồn tại trên node
 
           # Định nghĩa các cổng mà container lắng nghe. Ở đây, container mở cổng 3005 và gán tên là http
-          ports: [{ name: http, containerPort: 3005 }]
+          ports: [{ name: http, containerPort: 80 }]
 
           # Sử dụng secretRef để tải các biến môi trường từ secret có tên trustpay-env
           envFrom: [{ secretRef: { name: 'trustpay-env' } }]
