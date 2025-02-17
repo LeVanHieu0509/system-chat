@@ -9,6 +9,7 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
+  VerifyOTPRequestDto,
   VersionQueryDto,
 } from '@app/dto';
 import { AuthenticatorService } from './authenticator.service';
@@ -30,6 +31,11 @@ export class AuthenticatorController {
   @MessagePattern(MESSAGE_PATTERN.AUTH.REQUEST_OTP)
   async requestOTP(@Payload() body: OTPRequestDto, @Ack() _: RmqContext) {
     return this._service.processOTP(body);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.VERIFY_OTP)
+  async verifyOTP(@Payload() body: VerifyOTPRequestDto, @Ack() _: RmqContext) {
+    return this._service.checkOTP(body);
   }
 
   @MessagePattern(MESSAGE_PATTERN.AUTH.FIND_ACCOUNT)

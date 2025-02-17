@@ -14,6 +14,7 @@ import {
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
 import {
   BadRequestException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -33,6 +34,7 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
+  VerifyOTPRequestDto,
 } from '@app/dto';
 import {
   COMMON_NOTE_STATUS,
@@ -42,6 +44,9 @@ import {
 import { MainRepo } from 'libs/repositories/main.repo';
 import { UtilsService } from 'libs/utils/src';
 import { firstValueFrom, lastValueFrom } from 'rxjs';
+import { OTP_CONFIG, OTPService } from '@app/otp';
+import { AppError } from '@app/common';
+import { MailService } from '@app/mail';
 
 const HiddenChar = '*********';
 const REASON = {
@@ -60,6 +65,7 @@ export class AuthenticatorService {
   constructor(
     @Inject(QUEUES.WALLET) private readonly _clientWallet: ClientProxy,
     private readonly _repo: MainRepo,
+    private readonly _otp: OTPService,
   ) {}
 
   getHello(): string {
@@ -293,24 +299,25 @@ export class AuthenticatorService {
     }
 
     const key = email ? email : UtilsService.getInstance().toIntlPhone(phone);
-    // const otp = await this._otp.generateOTP(key + type, type);
-
-    // if (!otp)
-    //   return new AppError(
-    //     'ERR',
-    //     VALIDATE_MESSAGE.TOO_MANY_REQUESTS,
-    //     HttpStatus.TOO_MANY_REQUESTS,
-    //   );
+    const otp = await this._otp.generateOTP(key + type, type);
+    console.log({ otp });
+    if (!otp)
+      return new AppError(
+        'ERR',
+        VALIDATE_MESSAGE.TOO_MANY_REQUESTS,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
 
     const token = UtilsService.getInstance().randomToken(24);
-    // CachingService.getInstance().set(token, true, this._otp.getExpires(type));
-    // if (email) {
-    //   MailService.getInstance().sendOTP(
-    //     email,
-    //     otp,
-    //     OTP_CONFIG[type as OTP_TYPE].ttl.value,
-    //   );
-    // }
+    CachingService.getInstance().set(token, true, this._otp.getExpires(type));
+
+    if (email) {
+      MailService.getInstance().sendOTP(
+        email,
+        otp,
+        OTP_CONFIG[type as OTP_TYPE].ttl.value,
+      );
+    }
     return { token };
   }
 
@@ -400,8 +407,7 @@ export class AuthenticatorService {
 
     /*
       bạn không thể sử dụng trực tiếp Prisma__AccountClient như một Operation vì nó không phải 
-      là một đối tượng thực thi mà chỉ là một biểu diễn của một truy vấn. 
-      Bạn cần chuyển đổi nó thành một Promise trước khi có thể sử dụng trong các thao tác đồng thời như với bulkOps.
+                  là một đối tượng thực thi mà chỉ là một biểu diễn của một truy vấn. ```q    1```các thao tác đồng thời như với bulkOps.
     */
 
     // bulkOps để có thể thực hiện cùng lúc với các thao tác khác nhằm cải thiện hiệu suất.
@@ -856,8 +862,38 @@ export class AuthenticatorService {
     return { status: true };
   }
 
+  async checkOTP(input: VerifyOTPRequestDto) {
+    this._logger.log(`checkOTP input: ${JSON.stringify(input)}`);
+
+    const { otp, phone, email, type, token } = input;
+
+    const cache = await CachingService.getInstance().get(token);
+
+    if (!cache)
+      throw new BadRequestException([
+        { field: 'token', message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID },
+      ]);
+
+    const key = email ? email : UtilsService.getInstance().toIntlPhone(phone);
+
+    const valid = await this._otp.verifyOTP(key + type, otp, type);
+    if (!valid)
+      throw new BadRequestException([
+        { field: 'otp', message: VALIDATE_MESSAGE.ACCOUNT.OTP_INVALID },
+      ]);
+
+    CachingService.getInstance().delete(token);
+    const tokenString = UtilsService.getInstance().randomToken(24);
+    CachingService.getInstance().set(
+      tokenString,
+      true,
+      this._otp.getExpires(type),
+    );
+    return { token: tokenString };
+  }
+
   async verifyPasscode() {}
-  async checkOTP() {}
+
   async checkPhone() {}
   async preCheckPhone() {}
   async resetPasscode() {}

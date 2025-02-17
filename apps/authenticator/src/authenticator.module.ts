@@ -8,9 +8,10 @@ import { RepoModule } from 'libs/repositories/repo.module';
 import walletQueueProvider from '@app/common/providers/queues/wallet-queue.provider';
 import { PartnerService } from './partner.service';
 import { VNDCService } from 'libs/plugins';
+import { OTPModule } from '@app/otp';
 
 @Module({
-  imports: [RepoModule, HttpModule], //để nhập các module khác cần thiết.
+  imports: [RepoModule, OTPModule, HttpModule], //để nhập các module khác cần thiết.
   controllers: [AuthenticatorController],
   providers: [
     VNDCService,

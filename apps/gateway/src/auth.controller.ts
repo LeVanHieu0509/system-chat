@@ -26,6 +26,7 @@ import {
   OTPRequestDto,
   RefreshTokenRequestDto,
   SignupRequestDto,
+  VerifyOTPRequestDto,
   VerifyPasscodeSigninRequestDto,
 } from '@app/dto';
 import { AuthService } from './auth.service';
@@ -132,6 +133,18 @@ export class AuthController {
     else {
       return false;
     }
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('verify-otp')
+  async verifyOTP(@Body() body: VerifyOTPRequestDto) {
+    this._logger.log(`verifyOTP -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<boolean, VerifyOTPRequestDto>(
+      MESSAGE_PATTERN.AUTH.VERIFY_OTP,
+      body,
+    );
   }
 
   // --------------------------------------- GET ACCOUNT ----------------------------------------//
