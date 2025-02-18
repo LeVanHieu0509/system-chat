@@ -26,6 +26,8 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   RefreshTokenRequestDto,
+  ResetPasscodeRequestDto,
+  SigninRequestDto,
   SignupRequestDto,
   VerifyOTPRequestDto,
   VerifyPasscodeSigninRequestDto,
@@ -36,6 +38,7 @@ import { AuthUser } from '@app/common/decorators/auth-user.decorator';
 import { ClientProxy } from '@nestjs/microservices';
 import { AuthCacheInterceptor } from '@app/common/interceptors/auth-cache.interceptor';
 import { CachingService } from '@app/caching';
+import { firstValueFrom } from 'rxjs';
 
 /*
 @Request(), @Req()      -- Truy cập toàn bộ đối tượng request (req) từ Express hoặc Fastify.
@@ -322,6 +325,25 @@ export class AuthController {
     throw new BadRequestException([
       { field: 'phone', message: VALIDATE_MESSAGE.ACCOUNT.PHONE_ALREADY_USED },
     ]);
+  }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Patch('reset-passcode')
+  async resetPasscode(@Body() body: ResetPasscodeRequestDto) {
+    this._logger.log(`resetPasscode -> body: ${JSON.stringify(body)}`);
+    try {
+      const output = await firstValueFrom(
+        this._clientAuth.send<SigninRequestDto, SigninRequestDto>(
+          MESSAGE_PATTERN.AUTH.RESET_PASSCODE,
+          body,
+        ),
+      );
+      return output;
+    } catch (error) {
+      return { ...error, message: VALIDATE_MESSAGE.ACCOUNT.PHONE_INVALID };
+    }
   }
 }
 

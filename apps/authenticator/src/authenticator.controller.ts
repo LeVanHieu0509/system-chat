@@ -9,6 +9,7 @@ import {
   CheckPhoneRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
+  ResetPasscodeRequestDto,
   SignupRequestDto,
   VerifyOTPRequestDto,
   VersionQueryDto,
@@ -153,5 +154,13 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.preCheckPhone(body);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.RESET_PASSCODE)
+  async resetPasscode(
+    @Payload() body: ResetPasscodeRequestDto,
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.resetPasscode(body);
   }
 }

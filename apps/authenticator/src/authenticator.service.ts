@@ -35,6 +35,7 @@ import {
   CheckPhoneRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
+  ResetPasscodeRequestDto,
   SignupRequestDto,
   VerifyOTPRequestDto,
 } from '@app/dto';
@@ -919,14 +920,12 @@ export class AuthenticatorService {
 
     const { userId, phone } = input;
 
-    const existPhone = await this._repo
-      .getAccount()
-      .count({
-        where: {
-          id: { not: userId },
-          phone: UtilsService.getInstance().toIntlPhone(phone),
-        },
-      });
+    const existPhone = await this._repo.getAccount().count({
+      where: {
+        id: { not: userId },
+        phone: UtilsService.getInstance().toIntlPhone(phone),
+      },
+    });
 
     if (existPhone)
       throw new BadRequestException([
@@ -949,7 +948,40 @@ export class AuthenticatorService {
 
     return { expiresIn };
   }
-  async resetPasscode() {}
+
+  async resetPasscode(input: ResetPasscodeRequestDto) {
+    this._logger.log(`resetPasscode input: ${JSON.stringify(input)}`);
+
+    const { passcode, phone, token } = input;
+    const key = UtilsService.getInstance().toIntlPhone(phone);
+    if (await CachingService.getInstance().get(token)) {
+      const { histories: accountHistories } = await this._repo
+        .getAccount()
+        .findUnique({ where: { phone: key }, select: { histories: true } });
+      const { histories = [] } =
+        (accountHistories as { histories: Record<string, unknown>[] }) || {};
+      histories.push({
+        updatedAt: new Date().toISOString(),
+        reason: REASON.RESET_PASSCODE,
+      });
+
+      const output = this._repo.getAccount().update({
+        where: { phone: key },
+        data: {
+          passcode: UtilsService.getInstance().hashValue(passcode),
+          histories: accountHistories,
+        },
+        select: { phone: true, updatedAt: true },
+      });
+      CachingService.getInstance().delete(token);
+      return output;
+    } else {
+      throw new BadRequestException([
+        { field: 'token', message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID },
+      ]);
+    }
+  }
+
   async signIn() {}
   async editAccount() {}
   async changeEmail() {}
