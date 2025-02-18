@@ -22,6 +22,7 @@ import {
   AccessTokenRequestDto,
   Auth,
   ChangePhoneRequestDto,
+  CheckPhoneRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   RefreshTokenRequestDto,
@@ -34,6 +35,7 @@ import { CacheInterceptor } from '@nestjs/cache-manager';
 import { AuthUser } from '@app/common/decorators/auth-user.decorator';
 import { ClientProxy } from '@nestjs/microservices';
 import { AuthCacheInterceptor } from '@app/common/interceptors/auth-cache.interceptor';
+import { CachingService } from '@app/caching';
 
 /*
 @Request(), @Req()      -- Truy cập toàn bộ đối tượng request (req) từ Express hoặc Fastify.
@@ -240,6 +242,86 @@ export class AuthController {
       MESSAGE_PATTERN.AUTH.GET_PROFILE,
       userId,
     );
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('check-phone')
+  async checkPhone(
+    @AuthUser() { userId }: Auth,
+    @Body() body: CheckPhoneRequestDto,
+  ) {
+    this._logger.log(`checkPhone -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<boolean, CheckPhoneRequestDto & Auth>(
+      MESSAGE_PATTERN.AUTH.CHECK_PHONE,
+      { userId, ...body },
+    );
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('v2/pre-check-phone')
+  async preCheckPhone(
+    @AuthUser() { userId }: Auth,
+    @Body() body: CheckPhoneRequestDto,
+  ) {
+    this._logger.log(`preCheckPhone -> body: ${JSON.stringify(body)}`);
+    const cached = await CachingService.getInstance().get<{
+      expiresIn: number;
+      otp: string;
+    }>(`PRE-CHECK-PHONE-${userId}`);
+    if (cached && cached.expiresIn > Date.now()) {
+      throw new BadRequestException([
+        {
+          field: 'phone',
+          message: VALIDATE_MESSAGE.ACCOUNT.PHONE_SENT,
+          expiresIn: cached.expiresIn,
+          otp: cached.otp,
+        },
+      ]);
+    }
+
+    return this._clientAuth.send<unknown, CheckPhoneRequestDto & Auth>(
+      MESSAGE_PATTERN.AUTH.PRE_CHECK_PHONE,
+      {
+        userId,
+        ...body,
+      },
+    );
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('v2/pre-check-phone-otp')
+  async preCheckPhoneOtp(
+    @AuthUser() { userId }: Auth,
+    @Body() body: CheckPhoneRequestDto,
+  ) {
+    this._logger.log(`preCheckPhoneOtp -> body: ${JSON.stringify(body)}`);
+
+    const key = `PRE-CHECK-PHONE-${userId}`;
+    const cached = await CachingService.getInstance().get<{
+      phone: string;
+      expiresIn: number;
+      otp?: string;
+    }>(key);
+
+    if (
+      cached &&
+      body.phone === cached.phone &&
+      cached.expiresIn > Date.now()
+    ) {
+      CachingService.getInstance().set(
+        key,
+        { ...cached, otp: body.otp },
+        5 * 60,
+      );
+      return { ...body, expiresIn: cached.expiresIn };
+    }
+
+    throw new BadRequestException([
+      { field: 'phone', message: VALIDATE_MESSAGE.ACCOUNT.PHONE_ALREADY_USED },
+    ]);
   }
 }
 

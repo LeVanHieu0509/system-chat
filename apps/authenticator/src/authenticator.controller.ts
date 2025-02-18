@@ -6,6 +6,7 @@ import {
   Account,
   Auth,
   BuySatoshiRequestDto,
+  CheckPhoneRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
@@ -136,5 +137,21 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._partnerService.createTransactionForBuyingSatoshi(input);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CHECK_PHONE)
+  async checkPhone(
+    @Payload() body: CheckPhoneRequestDto & Auth,
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.checkPhone(body);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.PRE_CHECK_PHONE)
+  async preCheckPhone(
+    @Payload() body: CheckPhoneRequestDto & Auth,
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.preCheckPhone(body);
   }
 }

@@ -31,6 +31,8 @@ import {
 import {
   Account,
   AccountReferral,
+  Auth,
+  CheckPhoneRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   SignupRequestDto,
@@ -894,8 +896,59 @@ export class AuthenticatorService {
 
   async verifyPasscode() {}
 
-  async checkPhone() {}
-  async preCheckPhone() {}
+  // Hàm checkPhone được thiết kế để kiểm tra xem số điện thoại đã tồn tại trong hệ thống hay chưa,
+  // ngoại trừ số của chính người dùng đang thực hiện yêu cầu.
+  async checkPhone(input: CheckPhoneRequestDto & Auth) {
+    this._logger.log(`checkPhone input: ${JSON.stringify(input)}`);
+
+    const { userId, phone } = input;
+
+    return this._repo
+      .getAccount()
+      .count({
+        where: {
+          id: { not: userId },
+          phone: UtilsService.getInstance().toIntlPhone(phone),
+        },
+      })
+      .then((count) => !!count);
+  }
+
+  async preCheckPhone(input: CheckPhoneRequestDto & Auth) {
+    this._logger.log(`preCheckPhone input: ${JSON.stringify(input)}`);
+
+    const { userId, phone } = input;
+
+    const existPhone = await this._repo
+      .getAccount()
+      .count({
+        where: {
+          id: { not: userId },
+          phone: UtilsService.getInstance().toIntlPhone(phone),
+        },
+      });
+
+    if (existPhone)
+      throw new BadRequestException([
+        {
+          field: 'phone',
+          message: VALIDATE_MESSAGE.ACCOUNT.PHONE_ALREADY_USED,
+        },
+      ]);
+
+    const expiresIn = UtilsService.getInstance()
+      .toDayJs(Date.now())
+      .add(5, 'minute')
+      .valueOf();
+
+    CachingService.getInstance().set(
+      `PRE-CHECK-PHONE-${userId}`,
+      { expiresIn, phone },
+      5 * 60,
+    );
+
+    return { expiresIn };
+  }
   async resetPasscode() {}
   async signIn() {}
   async editAccount() {}
