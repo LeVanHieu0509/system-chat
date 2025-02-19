@@ -10,7 +10,9 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   ResetPasscodeRequestDto,
+  SigninRequestDto,
   SignupRequestDto,
+  UserProfileRequestDto,
   VerifyOTPRequestDto,
   VersionQueryDto,
 } from '@app/dto';
@@ -162,5 +164,22 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.resetPasscode(body);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SIGN_IN)
+  async signIn(
+    @Payload() body: SigninRequestDto,
+    @Ack() _: RmqContext,
+  ): Promise<Account> {
+    return this._service.signIn(body.phone, body.passcode);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.EDIT_PROFILE)
+  async editProfile(
+    @Payload()
+    { userId, ...account }: UserProfileRequestDto & { userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.editAccount(account, userId);
   }
 }

@@ -29,6 +29,7 @@ import {
   ResetPasscodeRequestDto,
   SigninRequestDto,
   SignupRequestDto,
+  UserProfileRequestDto,
   VerifyOTPRequestDto,
   VerifyPasscodeSigninRequestDto,
 } from '@app/dto';
@@ -244,6 +245,22 @@ export class AuthController {
     return this._clientAuth.send<string, string>(
       MESSAGE_PATTERN.AUTH.GET_PROFILE,
       userId,
+    );
+  }
+
+  @UsePipes(new MainValidationPipe({ skipMissingProperties: true }))
+  @Patch('profile')
+  async editProfile(
+    @Body() account: UserProfileRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`editProfile -> body: ${JSON.stringify(account)}`);
+    return this._clientAuth.send<string, UserProfileRequestDto & Auth>(
+      MESSAGE_PATTERN.AUTH.EDIT_PROFILE,
+      {
+        ...account,
+        userId,
+      },
     );
   }
 

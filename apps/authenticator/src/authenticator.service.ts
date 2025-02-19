@@ -37,6 +37,7 @@ import {
   OTPRequestDto,
   ResetPasscodeRequestDto,
   SignupRequestDto,
+  UserProfileDto,
   VerifyOTPRequestDto,
 } from '@app/dto';
 import {
@@ -982,8 +983,79 @@ export class AuthenticatorService {
     }
   }
 
-  async signIn() {}
-  async editAccount() {}
+  async signIn(phone: string, passcode: string): Promise<Account> {
+    this._logger.log(`signIn phone: ${phone}`);
+
+    const account = await this.getAccount({ phone });
+    if (
+      account &&
+      UtilsService.getInstance().compareHash(passcode, account.passcode)
+    ) {
+      return account;
+    }
+    return null;
+  }
+
+  async editAccount(input: UserProfileDto, id: string) {
+    this._logger.log(`editAccount id: ${id} input: ${JSON.stringify(input)}`);
+
+    // 📌 Bước 1: Nhận dữ liệu đầu vào và log thông tin
+    if (input.passcode) {
+      // compare current passcode
+      const { passcode, histories: accountHistories } = await this._repo
+        .getAccount()
+        .findUnique({
+          where: { id },
+          select: { passcode: true, histories: true },
+        });
+
+      // 📌 Bước 2: Kiểm tra nếu người dùng muốn thay đổi passcode
+      if (
+        UtilsService.getInstance().compareHash(input.currentPasscode, passcode)
+      ) {
+        input.passcode = UtilsService.getInstance().hashValue(input.passcode);
+        const { histories = [] } =
+          (accountHistories as { histories: Record<string, unknown>[] }) || {};
+        histories.push({
+          updatedAt: new Date().toISOString(),
+          reason: REASON.RESET_PASSCODE,
+        });
+        input['histories'] = { histories };
+      } else {
+        throw new BadRequestException([
+          {
+            field: 'currentPasscode',
+            message: VALIDATE_MESSAGE.ACCOUNT.PASSCODE_INVALID,
+          },
+        ]);
+      }
+
+      delete input.currentPasscode;
+    }
+
+    // 📌 Bước 3: Cập nhật thông tin tài khoản trong database
+    const account = await this._repo.getAccount().update({
+      where: { id },
+      data: input,
+      select: { id: true, updatedAt: true },
+    });
+
+    // 📌 Bước 4: Xóa cache nếu passcode đã thay đổi
+    if (input.passcode) {
+      delete input.passcode;
+
+      // Lưu trữ accessToken vào cache giúp giảm tải hệ thống khi người dùng thực hiện các yêu cầu tiếp theo,
+      // Vì thay vì phải truy vấn lại thông tin người dùng từ database,
+      // Hệ thống có thể lấy trực tiếp từ cache.
+      // Xóa cache nếu mật khẩu bị thay đổi, tránh sử dụng dữ liệu cũ không còn hợp lệ.
+
+      CachingService.getInstance().delete(`BITBACK-${id}`);
+    }
+
+    // 📌 Bước 5: Trả về thông tin tài khoản đã cập nhật
+    return account ? { ...input, ...account } : {};
+  }
+
   async changeEmail() {}
   async confirmEmail() {}
   async syncContacts() {}
