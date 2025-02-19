@@ -32,7 +32,9 @@ import {
   Account,
   AccountReferral,
   Auth,
+  ChangeEmailRequestDto,
   CheckPhoneRequestDto,
+  ConfirmEmailRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   ResetPasscodeRequestDto,
@@ -1056,8 +1058,107 @@ export class AuthenticatorService {
     return account ? { ...input, ...account } : {};
   }
 
-  async changeEmail() {}
-  async confirmEmail() {}
+  async changeEmail({ email, passcode }: ChangeEmailRequestDto, id: string) {
+    // Bước 1: Nhận dữ liệu đầu vào và log thông tin
+    this._logger.log(`changeEmail id: ${id} email: ${email}`);
+
+    // 📌 Bước 2: Kiểm tra xem email đã tồn tại chưa
+    const emailExist = await this._repo
+      .getAccount()
+      .count({ where: { email } });
+    if (emailExist) {
+      throw new BadRequestException([
+        { field: 'email', message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_EXIST },
+      ]);
+    }
+
+    const account = await this._repo.getAccount().findUnique({
+      where: { id },
+      select: { passcode: true, histories: true },
+    });
+
+    // 📌 Bước 3: Kiểm tra passcode hiện tại
+    if (!UtilsService.getInstance().compareHash(passcode, account.passcode)) {
+      throw new BadRequestException([
+        {
+          field: 'passcode',
+          message: VALIDATE_MESSAGE.ACCOUNT.PASSCODE_INVALID,
+        },
+      ]);
+    }
+    const { histories: accountHistories } = account;
+    const { histories = [] } =
+      (accountHistories as { histories: Record<string, unknown>[] }) || {};
+    histories.push({
+      updatedAt: new Date().toISOString(),
+      reason: REASON.CHANGE_EMAIL,
+    });
+
+    // 📌 Bước 4: Cập nhật email và lịch sử thay đổi
+    await this._repo.getAccount().update({
+      where: { id },
+      data: { email, emailVerified: false, histories: account.histories },
+      select: { updatedAt: true },
+    });
+
+    // 📌 Bước 5: Gửi OTP xác thực email mới
+    const otp = await this._otp.generateOTP(
+      email + OTP_TYPE.VERIFY_EMAIL,
+      OTP_TYPE.VERIFY_EMAIL,
+    );
+
+    MailService.getInstance().sendOTP(email, otp);
+    // 📌 Bước 6: Trả về kết quả
+    return { status: true };
+  }
+
+  // Hàm confirmEmail được thiết kế để xác thực email của người dùng thông qua OTP
+  // và cập nhật trạng thái emailVerified thành true khi OTP hợp lệ.
+  async confirmEmail({ email, otp }: ConfirmEmailRequestDto, id: string) {
+    // 📌 Bước 1: Nhận dữ liệu đầu vào và log thông tin
+    this._logger.log(`confirmEmail id: ${id} email: ${email}`);
+
+    // 📌 Bước 2: Xác thực OTP
+    const valid = await this._otp.verifyOTP(
+      email + OTP_TYPE.VERIFY_EMAIL,
+      otp,
+      OTP_TYPE.VERIFY_EMAIL,
+    );
+    if (!valid) {
+      throw new BadRequestException([
+        { field: 'otp', message: VALIDATE_MESSAGE.ACCOUNT.OTP_INVALID },
+      ]);
+    }
+
+    // 📌 Bước 3: Kiểm tra tài khoản trong database
+    const account = await this._repo.getAccount().findFirst({
+      where: { id, email, emailVerified: false },
+      select: { histories: true },
+    });
+    if (!account) {
+      throw new BadRequestException([
+        { field: 'email', message: VALIDATE_MESSAGE.ACCOUNT.EMAIL_INVALID },
+      ]);
+    }
+
+    const { histories: accountHistories } = account;
+    const { histories = [] } =
+      (accountHistories as { histories: Record<string, unknown>[] }) || {};
+    histories.push({
+      updatedAt: new Date().toISOString(),
+      reason: REASON.CONFIRM_EMAIL,
+    });
+
+    // 📌 Bước 4: Cập nhật emailVerified và lưu lịch sử thay đổi
+    await this._repo.getAccount().update({
+      where: { id },
+      data: { emailVerified: true, histories: account.histories },
+      select: { updatedAt: true },
+    });
+
+    return { status: true };
+  }
+
   async syncContacts() {}
   async getContacts() {}
   async settingProfile() {}

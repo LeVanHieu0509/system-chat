@@ -6,7 +6,9 @@ import {
   Account,
   Auth,
   BuySatoshiRequestDto,
+  ChangeEmailRequestDto,
   CheckPhoneRequestDto,
+  ConfirmEmailRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   ResetPasscodeRequestDto,
@@ -181,5 +183,23 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.editAccount(account, userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CHANGE_EMAIL)
+  async changeEmail(
+    @Payload()
+    { input, userId }: { input: ChangeEmailRequestDto; userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.changeEmail(input, userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CONFIRM_EMAIL)
+  async confirmEmail(
+    @Payload()
+    { input, userId }: { input: ConfirmEmailRequestDto; userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.confirmEmail(input, userId);
   }
 }

@@ -21,8 +21,10 @@ import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   AccessTokenRequestDto,
   Auth,
+  ChangeEmailRequestDto,
   ChangePhoneRequestDto,
   CheckPhoneRequestDto,
+  ConfirmEmailRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
   RefreshTokenRequestDto,
@@ -361,6 +363,32 @@ export class AuthController {
     } catch (error) {
       return { ...error, message: VALIDATE_MESSAGE.ACCOUNT.PHONE_INVALID };
     }
+  }
+
+  @UsePipes(new MainValidationPipe({ skipMissingProperties: true }))
+  @Patch('change-email')
+  async changeEmail(
+    @Body() body: ChangeEmailRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`changeEmail -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<
+      string,
+      { input: ChangeEmailRequestDto; userId: string }
+    >(MESSAGE_PATTERN.AUTH.CHANGE_EMAIL, { input: body, userId });
+  }
+
+  @UsePipes(new MainValidationPipe({ skipMissingProperties: true }))
+  @Patch('verify-email')
+  async verifyEmail(
+    @Body() body: ConfirmEmailRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`verifyEmail -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<
+      string,
+      { input: ConfirmEmailRequestDto; userId: string }
+    >(MESSAGE_PATTERN.AUTH.CONFIRM_EMAIL, { input: body, userId });
   }
 }
 
