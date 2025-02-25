@@ -47,3 +47,10 @@ bootstrap();
   6. Mỗi lệnh yarn dev:<service> được khởi chạy như một process độc lập trong hệ điều hành.
   7. Hệ điều hành có thể tận dụng tất cả các lõi CPU để chạy từng service song song => Tăng hiệu suất và khả năng mở rộng (scalability).
 */
+
+/*
+1. Node.js chạy trên single-threaded Event Loop, không thể tận dụng tối đa tất cả các lõi CPU.
+2. Mỗi service chạy trên một process độc lập, có thể tận dụng tất cả các lõi CPU.
+3. Child Process: Khi migration database, sẽ sài tiến trình con có luồng riêng, bộ nhớ riêng, 
+không chia sẻ trực tiếp tài nguyên với tiến trình chính => tặng tốc độ xử lý khi khởi động application
+*/
