@@ -47,14 +47,15 @@ import { CronjobController } from './cronjob.controller';
     }),
     CacheModule.registerAsync({
       useFactory: () => ({
-        store: redisStore,
-        host: REDIS_HOST,
-        port: REDIS_PORT,
-        auth_pass: REDIS_PASS,
-        ttl: CACHE_TTL,
-        max: CACHE_MAX,
+        store: redisStore, // Sử dụng Redis store để lưu trữ cache
+        host: REDIS_HOST, // Địa chỉ Redis server (thường lấy từ biến môi trường)
+        port: REDIS_PORT, // Cổng Redis server (thường lấy từ biến môi trường)
+        auth_pass: REDIS_PASS, // Mật khẩu xác thực Redis (nếu có)
+        ttl: CACHE_TTL, // Thời gian sống của cache (tính bằng giây, mặc định là 0 - không giới hạn)
+        max: CACHE_MAX, // Giới hạn số lượng cache tối đa (nếu có)
       }),
     }),
+
     RedlockModule.register(),
   ], // HttpModule được import để sử dụng các tính năng về HTTP
   controllers: [
