@@ -14,6 +14,7 @@ import {
   SigninRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
+  TransactionHistoryQueryDto,
   UpdateAccountSettingBodyDto,
   UpdateDeviceTokenRequestDto,
   UserProfileRequestDto,
@@ -236,5 +237,13 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.updateDeviceToken(id, deviceToken);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.TRANS_HISTORY)
+  async getTransactionHistory(
+    @Payload() { id, ...others }: TransactionHistoryQueryDto & { id: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.getTransactionHistory(id, others);
   }
 }

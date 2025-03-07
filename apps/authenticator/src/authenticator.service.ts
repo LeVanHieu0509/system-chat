@@ -10,6 +10,7 @@ import {
   QUEUES,
   REWARD_NON_REFERRAL,
   STATUS,
+  TRANSACTION_HISTORY_TYPE,
 } from '@app/common/constants';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
 import {
@@ -41,6 +42,7 @@ import {
   ResetPasscodeRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
+  TransactionHistoryQueryDto,
   UpdateAccountSettingBodyDto,
   UserProfileDto,
   VerifyOTPRequestDto,
@@ -1308,7 +1310,97 @@ export class AuthenticatorService {
     return { status: true };
   }
 
-  async getTransactionHistory() {}
+  async getTransactionHistory(
+    accountId: string,
+    input: TransactionHistoryQueryDto,
+  ) {
+    // 📌 Bước 1: Nhận dữ liệu đầu vào và log thông tin
+    this._logger.log(
+      `getTransactionHistory accountId: ${accountId} input: ${JSON.stringify(
+        input,
+      )} `,
+    );
+
+    // Nhận accountId của người dùng cần lấy lịch sử giao dịch.
+    const { page, size = 20, status, type, currency, version } = input;
+
+    // 📌 Bước 2: Lấy thông tin phân trang
+    // Sử dụng getPagination để tính toán skip và take dựa trên page và size (mặc định là 20).
+    const { skip, take } = this._repo.getPagination(page, size);
+    let totalRecords = 0,
+      data = [];
+
+    // 📌 Bước 3: Xử lý truy vấn dựa trên loại giao dịch (type)
+    if (type === TRANSACTION_HISTORY_TYPE.CASHBACk) {
+      // Tìm giao dịch cashback có senderId hoặc receiverId là accountId, nhưng loại REFERRAL không được tính.
+      const where: Prisma.CashbackTransactionWhereInput = {
+        OR: [
+          { senderId: accountId, type: { not: CASHBACK_TYPE.REFERRAL } },
+          { receiverId: accountId },
+        ],
+        // Lọc theo status và currency (nếu có)
+        status,
+      };
+
+      if (currency) where.currency = { code: currency };
+
+      // Dùng Promise.all() để chạy song song count() và findMany(), giúp tăng hiệu suất.
+      [totalRecords, data] = await Promise.all([
+        this._repo.getCbTrans().count({ where }),
+        this._repo.getCbTrans().findMany({
+          where,
+          skip,
+          take,
+          select: {
+            amount: true,
+            status: true,
+            fee: true,
+            type: true,
+            title: true,
+            description: true,
+            updatedAt: true,
+            actionType: true,
+            currency: { select: { name: true, code: true } },
+          },
+          // Sắp xếp theo updatedAt giảm dần để lấy giao dịch mới nhất trước
+          orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        }),
+      ]);
+    } else {
+      // Tìm giao dịch từ đối tác (PartnerTransaction) với accountId.
+      [totalRecords, data] = await Promise.all([
+        this._repo
+          .getPartnerTransaction()
+          .count({ where: { accountId, status } }), // Lọc theo status (nếu có).
+        this._repo.getPartnerTransaction().findMany({
+          where: { accountId, status },
+          skip,
+          take,
+          select: {
+            amount: true,
+            amountExchange: true,
+            status: true,
+            title: true,
+            type: true,
+            methodType: true,
+            partnerType: true,
+            description: true,
+            updatedAt: true,
+          },
+          orderBy: [{ updatedAt: 'desc' }, { transactionId: 'desc' }],
+        }),
+      ]);
+    }
+
+    // 📌 Bước 4: Chuyển đổi dữ liệu tiền tệ (nếu cần)
+    // Nếu có version, dữ liệu giao dịch sẽ được chuyển đổi tiền tệ thông qua UtilsService.
+    return {
+      page,
+      totalRecords,
+      data: UtilsService.getInstance().convertDataCurrency(data, version),
+    };
+  }
+
   async getNotification() {}
   async updateSeenNotification() {}
   async countNotification() {}
