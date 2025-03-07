@@ -39,6 +39,8 @@ import {
   SigninRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
+  TransactionHistoryQueryDto,
+  UpdateDeviceTokenRequestDto,
   UserProfileRequestDto,
   VerifyOTPRequestDto,
   VerifyPasscodeSigninRequestDto,
@@ -444,6 +446,41 @@ export class AuthController {
       boolean,
       SettingAccountRequestDto & { id: string; userId: string }
     >(MESSAGE_PATTERN.AUTH.PROFILE_SETTING, { ...body, id, userId });
+  }
+
+  @UsePipes(new MainValidationPipe())
+  @Patch('device-token')
+  async updateDeviceToken(
+    @Body() body: UpdateDeviceTokenRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`updateDeviceToken -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<
+      boolean,
+      UpdateDeviceTokenRequestDto & { id: string }
+    >(MESSAGE_PATTERN.AUTH.DEVICE_TOKEN, {
+      ...body,
+      id: userId,
+    });
+  }
+
+  @UseInterceptors(AuthCacheInterceptor)
+  @UsePipes(new MainValidationPipe())
+  @Get('transaction-history')
+  async getTransactionHistory(
+    @Query() query: TransactionHistoryQueryDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(
+      `getTransactionHistory -> query: ${JSON.stringify(query)}`,
+    );
+    return this._clientAuth.send<
+      boolean,
+      TransactionHistoryQueryDto & { id: string }
+    >(MESSAGE_PATTERN.AUTH.TRANS_HISTORY, {
+      id: userId,
+      ...query,
+    });
   }
 }
 

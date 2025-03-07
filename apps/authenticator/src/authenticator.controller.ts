@@ -15,6 +15,7 @@ import {
   SignupRequestDto,
   SyncContactRequestDto,
   UpdateAccountSettingBodyDto,
+  UpdateDeviceTokenRequestDto,
   UserProfileRequestDto,
   VerifyOTPRequestDto,
   VersionQueryDto,
@@ -226,5 +227,14 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.updateAccountSetting(userId, body);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.DEVICE_TOKEN)
+  updateDeviceToken(
+    @Payload()
+    { id, deviceToken }: UpdateDeviceTokenRequestDto & { id: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.updateDeviceToken(id, deviceToken);
   }
 }

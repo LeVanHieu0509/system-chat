@@ -1282,10 +1282,14 @@ export class AuthenticatorService {
     userId: string,
     body: UpdateAccountSettingBodyDto,
   ) {
+    // 📌 Bước 1: Nhận dữ liệu đầu vào và log thông tin
+    // 💡 Tại sao log deviceToken?
+    // Giúp debug khi cần kiểm tra thiết bị nào đang được liên kết với tài khoản.
     this._logger.log(
       `updateAccountSetting userId: ${userId} body: ${JSON.stringify(body)}`,
     );
 
+    // 📌 Bước 2: Cập nhật deviceToken trong database
     return this._repo
       .getAccount()
       .update({
@@ -1295,7 +1299,15 @@ export class AuthenticatorService {
       .then(() => ({ status: true }));
   }
 
-  async updateDeviceToken() {}
+  async updateDeviceToken(id: string, deviceToken: string) {
+    this._logger.log(`updateDeviceToken id: ${id} deviceToken: ${deviceToken}`);
+
+    await this._repo
+      .getAccount()
+      .update({ where: { id }, data: { deviceToken } });
+    return { status: true };
+  }
+
   async getTransactionHistory() {}
   async getNotification() {}
   async updateSeenNotification() {}
