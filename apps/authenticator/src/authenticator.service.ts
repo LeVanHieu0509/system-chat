@@ -41,6 +41,7 @@ import {
   ResetPasscodeRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
+  UpdateAccountSettingBodyDto,
   UserProfileDto,
   VerifyOTPRequestDto,
 } from '@app/dto';
@@ -1277,7 +1278,23 @@ export class AuthenticatorService {
     return { status: true };
   }
 
-  async updateAccountSetting() {}
+  async updateAccountSetting(
+    userId: string,
+    body: UpdateAccountSettingBodyDto,
+  ) {
+    this._logger.log(
+      `updateAccountSetting userId: ${userId} body: ${JSON.stringify(body)}`,
+    );
+
+    return this._repo
+      .getAccount()
+      .update({
+        where: { id: userId },
+        data: { accountSetting: { upsert: { create: body, update: body } } },
+      })
+      .then(() => ({ status: true }));
+  }
+
   async updateDeviceToken() {}
   async getTransactionHistory() {}
   async getNotification() {}

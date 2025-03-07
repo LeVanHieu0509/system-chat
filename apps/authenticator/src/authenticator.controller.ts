@@ -14,6 +14,7 @@ import {
   SigninRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
+  UpdateAccountSettingBodyDto,
   UserProfileRequestDto,
   VerifyOTPRequestDto,
   VersionQueryDto,
@@ -216,5 +217,14 @@ export class AuthenticatorController {
   @MessagePattern(MESSAGE_PATTERN.AUTH.GET_CONTACT)
   getContacts(@Payload() id: string, @Ack() _: RmqContext) {
     return this._service.getContacts(id);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.UPDATE_ACCOUNT_SETTING)
+  accountSetting(
+    @Payload()
+    { userId, body }: { userId: string; body: UpdateAccountSettingBodyDto },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.updateAccountSetting(userId, body);
   }
 }

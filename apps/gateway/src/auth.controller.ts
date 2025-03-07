@@ -1,4 +1,9 @@
-import { MESSAGE_PATTERN, OTP_TYPE, QUEUES } from '@app/common/constants';
+import {
+  MESSAGE_PATTERN,
+  OTP_TYPE,
+  PATH_CONTAIN_ID,
+  QUEUES,
+} from '@app/common/constants';
 import { Public } from '@app/common/decorators';
 import { MainValidationPipe } from '@app/common/pipes';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
@@ -11,6 +16,7 @@ import {
   HttpStatus,
   Inject,
   Logger,
+  Param,
   Patch,
   Post,
   Query,
@@ -29,6 +35,7 @@ import {
   OTPRequestDto,
   RefreshTokenRequestDto,
   ResetPasscodeRequestDto,
+  SettingAccountRequestDto,
   SigninRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
@@ -421,6 +428,22 @@ export class AuthController {
       MESSAGE_PATTERN.AUTH.GET_CONTACT,
       userId,
     );
+  }
+
+  @UsePipes(new MainValidationPipe())
+  @Patch('profile/setting' + PATH_CONTAIN_ID)
+  async settingProfile(
+    @Body() body: SettingAccountRequestDto,
+    @Param('id') id: string,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(
+      `settingProfile -> body: ${JSON.stringify(body)} id: ${id}`,
+    );
+    return this._clientAuth.send<
+      boolean,
+      SettingAccountRequestDto & { id: string; userId: string }
+    >(MESSAGE_PATTERN.AUTH.PROFILE_SETTING, { ...body, id, userId });
   }
 }
 
