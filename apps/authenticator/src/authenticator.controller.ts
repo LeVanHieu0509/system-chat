@@ -1,11 +1,10 @@
 import { MESSAGE_PATTERN } from '@app/common/constants';
 import { Ack } from '@app/common/decorators/ack.decorator';
-import { Controller, Get } from '@nestjs/common';
-import { MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import {
   Account,
   Auth,
   BuySatoshiRequestDto,
+  BuyVNDCRequestDto,
   ChangeEmailRequestDto,
   CheckPhoneRequestDto,
   ConfirmEmailRequestDto,
@@ -14,12 +13,14 @@ import {
   ResetPasscodeRequestDto,
   SigninRequestDto,
   SignupRequestDto,
+  SyncContactRequestDto,
   UserProfileRequestDto,
   VerifyOTPRequestDto,
   VersionQueryDto,
 } from '@app/dto';
+import { Controller, Get } from '@nestjs/common';
+import { MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { AuthenticatorService } from './authenticator.service';
-import { BuyVNDCRequestDto } from '@app/dto';
 import { PartnerService } from './partner.service';
 
 @Controller()
@@ -201,5 +202,19 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.confirmEmail(input, userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SYNC_CONTACT)
+  syncContacts(
+    @Payload() input: SyncContactRequestDto & { id: string },
+    @Ack() _: RmqContext,
+  ) {
+    const { id, ...others } = input;
+    return this._service.syncContacts(id, others);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.GET_CONTACT)
+  getContacts(@Payload() id: string, @Ack() _: RmqContext) {
+    return this._service.getContacts(id);
   }
 }

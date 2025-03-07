@@ -31,6 +31,7 @@ import {
   ResetPasscodeRequestDto,
   SigninRequestDto,
   SignupRequestDto,
+  SyncContactRequestDto,
   UserProfileRequestDto,
   VerifyOTPRequestDto,
   VerifyPasscodeSigninRequestDto,
@@ -389,6 +390,37 @@ export class AuthController {
       string,
       { input: ConfirmEmailRequestDto; userId: string }
     >(MESSAGE_PATTERN.AUTH.CONFIRM_EMAIL, { input: body, userId });
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new MainValidationPipe())
+  @Post('contact')
+  async syncContacts(
+    @Body() body: SyncContactRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`syncContacts -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<
+      boolean,
+      SyncContactRequestDto & { id: string }
+    >(MESSAGE_PATTERN.AUTH.SYNC_CONTACT, {
+      ...body,
+      id: userId,
+    });
+  }
+
+  @UseInterceptors(AuthCacheInterceptor)
+  @Get('contact')
+  async getContacts(@AuthUser() { userId }: Auth) {
+    this._logger.log(`getContacts -> userId: ${userId}`);
+    const cache = await CachingService.getInstance().get(
+      MESSAGE_PATTERN.AUTH.GET_CONTACT + userId,
+    );
+    if (cache) return cache;
+    return this._clientAuth.send<boolean, string>(
+      MESSAGE_PATTERN.AUTH.GET_CONTACT,
+      userId,
+    );
   }
 }
 

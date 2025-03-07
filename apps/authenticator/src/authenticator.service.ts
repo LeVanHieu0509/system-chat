@@ -35,10 +35,12 @@ import {
   ChangeEmailRequestDto,
   CheckPhoneRequestDto,
   ConfirmEmailRequestDto,
+  Contact,
   FindAccountRequestDto,
   OTPRequestDto,
   ResetPasscodeRequestDto,
   SignupRequestDto,
+  SyncContactRequestDto,
   UserProfileDto,
   VerifyOTPRequestDto,
 } from '@app/dto';
@@ -1159,9 +1161,122 @@ export class AuthenticatorService {
     return { status: true };
   }
 
-  async syncContacts() {}
-  async getContacts() {}
-  async settingProfile() {}
+  // Contact
+  async syncContacts(id: string, { contacts }: SyncContactRequestDto) {
+    this._logger.log(`syncContacts id: ${id}`);
+    //1. Nhận id của tài khoản người dùng đang đồng bộ danh bạ.
+    const contactObj = {};
+
+    // Nhận danh sách contacts, mỗi contact bao gồm số điện thoại và tên.
+    const phones = (contacts as Contact[]).map((item) => {
+      const phone = UtilsService.getInstance().toIntlPhone(item.phone);
+      contactObj[phone] = item.name;
+      return phone;
+    });
+
+    // Kiểm tra danh sách số điện thoại đã tồn tại trong hệ thống
+    const accountExist = await this._repo.getAccount().findMany({
+      where: { id: { not: id }, phone: { in: phones } },
+      select: { id: true, phone: true },
+    });
+
+    // Trường hợp có lỗi, giao dịch sẽ bị rollback.
+    return this._repo.transaction(
+      accountExist.map((account) => {
+        // Cập nhật danh bạ vào bảng AccountContact
+        // Sử dụng upsert thay vì create/update, giúp tránh lỗi khi nhập trùng dữ liệu.
+        return this._repo.getAccountContact().upsert({
+          where: {
+            // Nếu quan hệ giữa người dùng và tài khoản đã tồn tại, cập nhật displayName.
+            accountId_contactId: { accountId: id, contactId: account.id },
+          },
+          update: { displayName: contactObj[account.phone] },
+          // Nếu chưa tồn tại, tạo mới bản ghi với accountId, contactId, displayName.
+          create: {
+            accountId: id,
+            contactId: account.id,
+            displayName: contactObj[account.phone],
+          },
+          select: {
+            displayName: true,
+            createdAt: true,
+            // Trả về thông tin tài khoản được liên kết bao gồm id, phone, avatar, fullName, email.
+            accountInfo: {
+              select: {
+                id: true,
+                phone: true,
+                avatar: true,
+                fullName: true,
+                email: true,
+              },
+            },
+          },
+        });
+      }),
+    );
+  }
+
+  async getContacts(id: string) {
+    this._logger.log(`getContacts id: ${id}`);
+
+    const output = await this._repo.getAccountContact().findMany({
+      where: { accountId: id },
+      select: {
+        displayName: true,
+        createdAt: true,
+        accountInfo: {
+          select: {
+            id: true,
+            phone: true,
+            avatar: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+    });
+    CachingService.getInstance().set(
+      MESSAGE_PATTERN.AUTH.GET_CONTACT + id,
+      output,
+      DEFAULT_EXPIRES_GET,
+    );
+    return output;
+  }
+
+  // Hàm settingProfile trong service của NestJS giúp cập nhật cài đặt thông báo (receiveNotify) cho tài khoản người dùng
+  async settingProfile(userId: string, id: string, receiveNotify: string) {
+    // 📌 Bước 1: Nhận dữ liệu đầu vào và log thông tin
+    this._logger.log(
+      `settingProfile id: ${id} receiveNotify: ${receiveNotify}`,
+    );
+
+    // 📌 Bước 2: Truy vấn cài đặt từ database
+    const setting = await this._repo.getAccountSetting().findFirst({
+      where: { id },
+      select: { accountId: true, receiveNotify: true },
+    });
+
+    // 📌 Bước 3: Kiểm tra quyền sở hữu và dữ liệu hợp lệ
+    if (!setting || setting.accountId !== userId) {
+      throw new BadRequestException([
+        { field: 'id', message: VALIDATE_MESSAGE.SETTING.SETTING_INVALID },
+      ]);
+    }
+    if (setting.receiveNotify === !!receiveNotify) {
+      throw new BadRequestException([
+        {
+          field: 'receiveNotify',
+          message: VALIDATE_MESSAGE.SETTING.RECEIVE_NOTIFY_INVALID,
+        },
+      ]);
+    }
+    // 📌 Bước 4: Cập nhật giá trị receiveNotify trong database
+    await this._repo
+      .getAccountSetting()
+      .update({ where: { id }, data: { receiveNotify: !!receiveNotify } });
+    return { status: true };
+  }
+
   async updateAccountSetting() {}
   async updateDeviceToken() {}
   async getTransactionHistory() {}
