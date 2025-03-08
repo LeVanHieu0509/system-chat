@@ -11,6 +11,7 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   ResetPasscodeRequestDto,
+  SettingAccountRequestDto,
   SigninRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
@@ -219,6 +220,19 @@ export class AuthenticatorController {
   @MessagePattern(MESSAGE_PATTERN.AUTH.GET_CONTACT)
   getContacts(@Payload() id: string, @Ack() _: RmqContext) {
     return this._service.getContacts(id);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.PROFILE_SETTING)
+  settingProfile(
+    @Payload()
+    {
+      id,
+      receiveNotify,
+      userId,
+    }: SettingAccountRequestDto & { id: string; userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.settingProfile(userId, id, receiveNotify);
   }
 
   @MessagePattern(MESSAGE_PATTERN.AUTH.UPDATE_ACCOUNT_SETTING)

@@ -40,6 +40,7 @@ import {
   SignupRequestDto,
   SyncContactRequestDto,
   TransactionHistoryQueryDto,
+  UpdateAccountSettingBodyDto,
   UpdateDeviceTokenRequestDto,
   UserProfileRequestDto,
   VerifyOTPRequestDto,
@@ -446,6 +447,19 @@ export class AuthController {
       boolean,
       SettingAccountRequestDto & { id: string; userId: string }
     >(MESSAGE_PATTERN.AUTH.PROFILE_SETTING, { ...body, id, userId });
+  }
+
+  @UsePipes(new MainValidationPipe())
+  @Patch('profile/setting')
+  async updateAccountSetting(
+    @AuthUser() { userId }: Auth,
+    @Body() body: UpdateAccountSettingBodyDto,
+  ) {
+    this._logger.log(`updateAccountSetting -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth.send<
+      boolean,
+      { userId: string; body: UpdateAccountSettingBodyDto }
+    >(MESSAGE_PATTERN.AUTH.UPDATE_ACCOUNT_SETTING, { userId, body });
   }
 
   @UsePipes(new MainValidationPipe())

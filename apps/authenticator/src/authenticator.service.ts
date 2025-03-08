@@ -1265,6 +1265,8 @@ export class AuthenticatorService {
         { field: 'id', message: VALIDATE_MESSAGE.SETTING.SETTING_INVALID },
       ]);
     }
+
+    // check lại giá trị trong db, nếu giống rồi thì sẽ không cho truy cập vào database nữa mà, bắt buộc phải update 1 giá trị khác giá trị của database
     if (setting.receiveNotify === !!receiveNotify) {
       throw new BadRequestException([
         {
@@ -1386,6 +1388,7 @@ export class AuthenticatorService {
             partnerType: true,
             description: true,
             updatedAt: true,
+            currency: { select: { name: true, code: true } },
           },
           orderBy: [{ updatedAt: 'desc' }, { transactionId: 'desc' }],
         }),
