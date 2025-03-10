@@ -10,6 +10,7 @@ import {
   ConfirmEmailRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
+  PaginationDto,
   ResetPasscodeRequestDto,
   SettingAccountRequestDto,
   SigninRequestDto,
@@ -22,10 +23,11 @@ import {
   VerifyOTPRequestDto,
   VersionQueryDto,
 } from '@app/dto';
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, UseInterceptors } from '@nestjs/common';
 import { MessagePattern, Payload, RmqContext } from '@nestjs/microservices';
 import { AuthenticatorService } from './authenticator.service';
 import { PartnerService } from './partner.service';
+import { ExecutionTimeLoggerInterceptor } from '@app/common/interceptors/execution-time-logger.interceptor';
 
 @Controller()
 export class AuthenticatorController {
@@ -259,5 +261,35 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.getTransactionHistory(id, others);
+  }
+
+  @UseInterceptors(ExecutionTimeLoggerInterceptor)
+  @MessagePattern(MESSAGE_PATTERN.AUTH.NOTIFICATION)
+  getNotification(
+    @Payload() { userId, ...query }: { userId: string } & PaginationDto,
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.getNotification(query, userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SEEN_NOTIFICATION)
+  updateSeenNotification(
+    @Payload() { id, userId }: { id: string; userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.updateSeenNotification(id, userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.COUNT_NOTIFICATION)
+  countUnreadNotification(@Payload() userId: string, @Ack() _: RmqContext) {
+    return this._service.countNotification(userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.READ_ALL_NOTIFICATIONS)
+  readAllNotifications(
+    @Payload() input: { userId: string; at: Date },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.readAllNotifications(input.userId, input.at);
   }
 }

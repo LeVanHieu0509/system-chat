@@ -39,6 +39,7 @@ import {
   Contact,
   FindAccountRequestDto,
   OTPRequestDto,
+  PaginationDto,
   ResetPasscodeRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
@@ -58,6 +59,7 @@ import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { OTP_CONFIG, OTPService } from '@app/otp';
 import { AppError } from '@app/common';
 import { MailService } from '@app/mail';
+import { AuthThirdPartyService } from './third-party.service';
 
 const HiddenChar = '*********';
 const REASON = {
@@ -75,6 +77,7 @@ export class AuthenticatorService {
 
   constructor(
     @Inject(QUEUES.WALLET) private readonly _clientWallet: ClientProxy,
+    private readonly _authThirdParty: AuthThirdPartyService,
     private readonly _repo: MainRepo,
     private readonly _otp: OTPService,
   ) {}
@@ -85,6 +88,12 @@ export class AuthenticatorService {
 
   async signInWithGoogle(accessToken: string) {
     // handle third party to get info from google.
+    // this._logger.log(`signInWithGoogle accessToken: ${accessToken}`);
+    // const googleAccount = await this._authThirdParty.signInWithGoogle(accessToken);
+    // if (!googleAccount) {
+    //     throw new BadRequestException([{ field: 'accessToken', message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID }]);
+    // }
+
     const googleAccount: Account = {
       email: 'levanhieu@outlook.com', //UtilsService.getInstance().randomEmail(),
       emailVerified: true,
@@ -103,6 +112,36 @@ export class AuthenticatorService {
     }
 
     return this.processSignInWithThirdParty(googleAccount);
+  }
+
+  async signInWithFacebook(accessToken: string) {
+    this._logger.log(`signInWithFacebook accessToken: ${accessToken}`);
+    const fbAccount =
+      await this._authThirdParty.signInWithFacebook(accessToken);
+    if (!fbAccount) {
+      throw new BadRequestException([
+        {
+          field: 'accessToken',
+          message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID,
+        },
+      ]);
+    }
+    return this.processSignInWithThirdParty(fbAccount);
+  }
+
+  async signInWithApple(accessToken: string) {
+    this._logger.log(`signInWithApple accessToken: ${accessToken}`);
+    const appleAccount =
+      await this._authThirdParty.signInWithApple(accessToken);
+    if (!appleAccount) {
+      throw new BadRequestException([
+        {
+          field: 'accessToken',
+          message: VALIDATE_MESSAGE.ACCOUNT.TOKEN_INVALID,
+        },
+      ]);
+    }
+    return this.processSignInWithThirdParty(appleAccount);
   }
 
   private async processSignInWithThirdParty(newAccount: Account) {
@@ -270,6 +309,7 @@ export class AuthenticatorService {
   }
 
   async verifyPasscodeSignIn(id: string, passcode: string) {
+    //  Loại bỏ passcode trong log ở môi trường production.
     this._logger.log(`verifyPasscodeSignIn id: ${id} passcode: ${passcode}`);
 
     const account = await this._repo.getAccount().findUnique({
@@ -903,7 +943,24 @@ export class AuthenticatorService {
     return { token: tokenString };
   }
 
-  async verifyPasscode() {}
+  async verifyPasscode(userId: string, passcode: string) {
+    this._logger.log(`verifyPasscode userId: ${userId} passcode: ${passcode}`);
+
+    const account = await this._repo
+      .getAccount()
+      .findUnique({ where: { id: userId }, select: { passcode: true } });
+
+    if (!UtilsService.getInstance().compareHash(passcode, account.passcode)) {
+      throw new BadRequestException([
+        {
+          field: 'passcode',
+          message: VALIDATE_MESSAGE.ACCOUNT.PASSCODE_INVALID,
+        },
+      ]);
+    }
+
+    return true;
+  }
 
   // Hàm checkPhone được thiết kế để kiểm tra xem số điện thoại đã tồn tại trong hệ thống hay chưa,
   // ngoại trừ số của chính người dùng đang thực hiện yêu cầu.
@@ -1404,8 +1461,62 @@ export class AuthenticatorService {
     };
   }
 
-  async getNotification() {}
-  async updateSeenNotification() {}
-  async countNotification() {}
-  async readAllNotifications() {}
+  async getNotification({ page, size }: PaginationDto, accountId: string) {
+    this._logger.log(`getNotification accountId: ${accountId}`);
+
+    const { skip, take } = this._repo.getPagination(page, size);
+    const [totalRecords, notifications] = await Promise.all([
+      this._repo.getNotification().count({ where: { accountId } }),
+      this._repo.getNotification().findMany({
+        skip,
+        take,
+        where: { accountId },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    return { totalRecords, page, data: notifications };
+  }
+
+  async updateSeenNotification(id: string, accountId: string) {
+    this._logger.log(
+      `updateSeenNotification id: ${id} accountId: ${accountId}`,
+    );
+
+    const notify = await this._repo
+      .getNotification()
+      .count({ where: { id, seen: false, accountId } });
+    if (!notify) {
+      throw new BadRequestException([
+        {
+          field: 'id',
+          message: VALIDATE_MESSAGE.NOTIFICATION.NOTIFICATION_INVALID,
+        },
+      ]);
+    }
+    await this._repo
+      .getNotification()
+      .update({ where: { id }, data: { seen: true } });
+    return { status: true };
+  }
+
+  async countNotification(accountId: string) {
+    this._logger.log(`countNotification accountId: ${accountId}`);
+
+    const totalRecords = await this._repo
+      .getNotification()
+      .count({ where: { accountId, seen: { not: true } } });
+    return { totalRecords };
+  }
+
+  // Hàm readAllNotifications giúp đánh dấu tất cả thông báo của một người dùng là đã đọc nếu thông báo được tạo trước một thời điểm nhất định (at).
+  async readAllNotifications(accountId: string, at: Date) {
+    this._logger.log(`readAllNotifications accountId: ${accountId} at: ${at}`);
+
+    const { count } = await this._repo.getNotification().updateMany({
+      where: { accountId, seen: { not: true }, createdAt: { lte: at } },
+      data: { seen: true },
+    });
+    return { totalRecords: count };
+  }
 }

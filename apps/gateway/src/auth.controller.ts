@@ -20,6 +20,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
@@ -33,6 +34,8 @@ import {
   ConfirmEmailRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
+  PaginationDto,
+  ReadAllNotificationRequestDto,
   RefreshTokenRequestDto,
   ResetPasscodeRequestDto,
   SettingAccountRequestDto,
@@ -50,9 +53,12 @@ import { AuthService } from './auth.service';
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { AuthUser } from '@app/common/decorators/auth-user.decorator';
 import { ClientProxy } from '@nestjs/microservices';
-import { AuthCacheInterceptor } from '@app/common/interceptors/auth-cache.interceptor';
+import {
+  AuthCacheInterceptor,
+  extractAuthCacheKey,
+} from '@app/common/interceptors/auth-cache.interceptor';
 import { CachingService } from '@app/caching';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, tap } from 'rxjs';
 
 /*
 @Request(), @Req()      -- Truy cập toàn bộ đối tượng request (req) từ Express hoặc Fastify.
@@ -495,6 +501,78 @@ export class AuthController {
       id: userId,
       ...query,
     });
+  }
+
+  @UseInterceptors(AuthCacheInterceptor)
+  @UsePipes(new MainValidationPipe())
+  @Get('notification')
+  async getNotification(
+    @Query() query: PaginationDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`getNotification -> query: ${JSON.stringify(query)}`);
+    return this._clientAuth.send<boolean, PaginationDto & { userId: string }>(
+      MESSAGE_PATTERN.AUTH.NOTIFICATION,
+      {
+        ...query,
+        userId,
+      },
+    );
+  }
+
+  @Patch('notification/seen' + PATH_CONTAIN_ID)
+  async updateNotification(
+    @Param('id') id: string,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`updateNotification -> id: ${id}`);
+    return this._clientAuth.send<boolean, { id: string; userId: string }>(
+      MESSAGE_PATTERN.AUTH.SEEN_NOTIFICATION,
+      {
+        id,
+        userId,
+      },
+    );
+  }
+
+  @UsePipes(new MainValidationPipe())
+  @Get('notification/count')
+  async countUnreadNotification(@AuthUser() { userId }: Auth) {
+    this._logger.log(`getTransactionHistory -> userId: ${userId}`);
+    return this._clientAuth.send<unknown, string>(
+      MESSAGE_PATTERN.AUTH.COUNT_NOTIFICATION,
+      userId,
+    );
+  }
+
+  // Sử dụng MainValidationPipe để kiểm tra dữ liệu đầu vào từ body.
+  @UsePipes(new MainValidationPipe())
+  @Patch('notification/read-all')
+  async readAllNotifications(
+    @Req() req: Request,
+    @Body() body: ReadAllNotificationRequestDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`readAllNotifications -> body: ${JSON.stringify(body)}`);
+    return this._clientAuth
+      .send<{ totalRecords: number }, { userId: string; at: string | Date }>(
+        MESSAGE_PATTERN.AUTH.READ_ALL_NOTIFICATIONS,
+        {
+          userId,
+          at: body.at,
+        },
+      )
+      .pipe(
+        // Dùng tap() để kiểm tra phản hồi từ microservice.
+        // Nếu totalRecords > 0, nghĩa là có thông báo đã được cập nhật, thì xoá cache để đảm bảo dữ liệu cập nhật mới nhất
+        tap((response) => {
+          if (response?.totalRecords) {
+            // Clear cache from AuthCacheInterceptor
+            // Nếu người dùng đã đánh dấu tất cả thông báo là đã đọc, nhưng cache vẫn chứa dữ liệu cũ, thì người dùng sẽ tiếp tục thấy thông báo chưa đọc.
+            CachingService.getInstance().delete(extractAuthCacheKey(req));
+          }
+        }),
+      );
   }
 }
 
