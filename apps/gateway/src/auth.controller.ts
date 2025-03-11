@@ -1,4 +1,5 @@
 import {
+  DEFAULT_EXPIRES_GET,
   MESSAGE_PATTERN,
   OTP_TYPE,
   PATH_CONTAIN_ID,
@@ -12,6 +13,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Inject,
@@ -21,10 +23,12 @@ import {
   Post,
   Query,
   Req,
+  Res,
   UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import {
   AccessTokenRequestDto,
   Auth,
@@ -50,7 +54,7 @@ import {
   VerifyPasscodeSigninRequestDto,
 } from '@app/dto';
 import { AuthService } from './auth.service';
-import { CacheInterceptor } from '@nestjs/cache-manager';
+import { CacheInterceptor, CacheTTL } from '@nestjs/cache-manager';
 import { AuthUser } from '@app/common/decorators/auth-user.decorator';
 import { ClientProxy } from '@nestjs/microservices';
 import {
@@ -573,6 +577,54 @@ export class AuthController {
           }
         }),
       );
+  }
+
+  @Public()
+  @Header('content-type', 'text/html')
+  @Get('terms')
+  async getTerms(@Res() res: Response) {
+    const { readFileSync } = await import('fs');
+    const { join } = await import('path');
+    const url = join(process.cwd(), 'config/trustpay_tnc.html');
+    return res.send(readFileSync(url, { encoding: 'utf8' }));
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @Get('banners-v2')
+  async getBannersV2() {
+    const cache = await CachingService.getInstance().get<string[]>(
+      MESSAGE_PATTERN.AUTH.BANNERS_V2,
+    );
+    if (cache) return cache;
+
+    return this._clientAuth.send<string[], unknown>(
+      MESSAGE_PATTERN.AUTH.BANNERS_V2,
+      {},
+    );
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @Get('ads-banner')
+  async getAdsBanner() {
+    const cache = await CachingService.getInstance().get<unknown>(
+      MESSAGE_PATTERN.AUTH.ADS_BANNER,
+    );
+    if (cache) return cache;
+
+    return this._clientAuth.send<string[], unknown>(
+      MESSAGE_PATTERN.AUTH.ADS_BANNER,
+      {},
+    );
+  }
+
+  @UseInterceptors(CacheInterceptor)
+  @CacheTTL(DEFAULT_EXPIRES_GET)
+  @Get('ads-banner-v2')
+  async getAdsBannerV2() {
+    return this._clientAuth.send<string[], unknown>(
+      MESSAGE_PATTERN.AUTH.ADS_BANNER_V2,
+      {},
+    );
   }
 }
 

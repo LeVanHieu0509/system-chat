@@ -1,4 +1,6 @@
+import { AppError } from '@app/common';
 import {
+  ADS_STATUS,
   CASHBACK_ACTION_TYPE,
   CASHBACK_STATUS,
   CASHBACK_TYPE,
@@ -13,22 +15,6 @@ import {
   TRANSACTION_HISTORY_TYPE,
 } from '@app/common/constants';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
-import {
-  BadRequestException,
-  HttpStatus,
-  Inject,
-  Injectable,
-  Logger,
-} from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
-import { Prisma, PrismaPromise } from '@prisma/client';
-import { isEmail, isPhoneNumber } from 'class-validator';
-import { CachingService } from 'libs/caching/src';
-import {
-  AMOUNT_REFERRAL_BY,
-  AMOUNT_REFERRAL_FROM,
-  REFERRAL_CODE_LENGTH,
-} from 'libs/config';
 import {
   Account,
   AccountReferral,
@@ -48,6 +34,24 @@ import {
   UserProfileDto,
   VerifyOTPRequestDto,
 } from '@app/dto';
+import { MailService } from '@app/mail';
+import { OTP_CONFIG, OTPService } from '@app/otp';
+import {
+  BadRequestException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { Prisma, PrismaPromise } from '@prisma/client';
+import { isEmail, isPhoneNumber } from 'class-validator';
+import { CachingService } from 'libs/caching/src';
+import {
+  AMOUNT_REFERRAL_BY,
+  AMOUNT_REFERRAL_FROM,
+  REFERRAL_CODE_LENGTH,
+} from 'libs/config';
 import {
   COMMON_NOTE_STATUS,
   COMMON_TITLE,
@@ -56,12 +60,10 @@ import {
 import { MainRepo } from 'libs/repositories/main.repo';
 import { UtilsService } from 'libs/utils/src';
 import { firstValueFrom, lastValueFrom } from 'rxjs';
-import { OTP_CONFIG, OTPService } from '@app/otp';
-import { AppError } from '@app/common';
-import { MailService } from '@app/mail';
 import { AuthThirdPartyService } from './third-party.service';
 
-const HiddenChar = '*********';
+// const HiddenChar = '*********';
+
 const REASON = {
   RESET_PASSCODE: 'Đặt lại mật khẩu.',
   CHANGE_KYC_STATUS: 'Cập nhập trạng thái eKYC.',
@@ -87,6 +89,7 @@ export class AuthenticatorService {
   }
 
   async signInWithGoogle(accessToken: string) {
+    console.log({ accessToken });
     // handle third party to get info from google.
     // this._logger.log(`signInWithGoogle accessToken: ${accessToken}`);
     // const googleAccount = await this._authThirdParty.signInWithGoogle(accessToken);
@@ -861,6 +864,14 @@ export class AuthenticatorService {
     const account = await this._repo
       .getAccount()
       .findUnique({ where: { id }, select: { histories: true } });
+    if (!account) {
+      throw new BadRequestException([
+        {
+          field: 'id',
+          message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID,
+        },
+      ]);
+    }
 
     const { histories: accountHistories } = account;
     const { histories = [] } =
@@ -879,7 +890,7 @@ export class AuthenticatorService {
   }
 
   async changePhone(phoneInput: string, id: string) {
-    this._logger.log(`confirmEmail id: ${id} phone: ${phoneInput}`);
+    this._logger.log(`changePhone id: ${id} phone: ${phoneInput}`);
 
     const phone = UtilsService.getInstance().toIntlPhone(phoneInput);
 
@@ -1061,7 +1072,12 @@ export class AuthenticatorService {
   }
 
   async editAccount(input: UserProfileDto, id: string) {
-    this._logger.log(`editAccount id: ${id} input: ${JSON.stringify(input)}`);
+    const safeInput = { ...input };
+    if (safeInput.passcode) safeInput.passcode = '***';
+
+    this._logger.log(
+      `editAccount id: ${id} input: ${JSON.stringify(safeInput)}`,
+    );
 
     // 📌 Bước 1: Nhận dữ liệu đầu vào và log thông tin
     if (input.passcode) {
@@ -1518,5 +1534,58 @@ export class AuthenticatorService {
       data: { seen: true },
     });
     return { totalRecords: count };
+  }
+
+  async getBannersV2() {
+    const banners = await this._repo.getBanner().findMany({
+      orderBy: [{ position: 'asc' }, { updatedAt: 'desc' }],
+      select: { urlContent: true, link: true },
+    });
+
+    CachingService.getInstance().set(
+      MESSAGE_PATTERN.AUTH.BANNERS_V2,
+      banners,
+      DEFAULT_EXPIRES_GET,
+    );
+    return banners;
+  }
+
+  async getAdsBanner() {
+    const banner = await this._repo.getConfigAds().findFirst({
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        title: true,
+        url: true,
+        externalLink: true,
+        buttonTitle: true,
+        startAt: true,
+        stopAt: true,
+      },
+    });
+
+    if (banner) {
+      CachingService.getInstance().set(
+        MESSAGE_PATTERN.AUTH.ADS_BANNER,
+        banner,
+        DEFAULT_EXPIRES_GET,
+      );
+      return banner;
+    }
+    return {};
+  }
+
+  async getAdsBannerV2() {
+    return this._repo.getConfigAds().findMany({
+      where: { status: ADS_STATUS.SHOW },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        title: true,
+        url: true,
+        externalLink: true,
+        buttonTitle: true,
+        startAt: true,
+        stopAt: true,
+      },
+    });
   }
 }

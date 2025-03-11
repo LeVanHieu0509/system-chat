@@ -9,6 +9,7 @@ import walletQueueProvider from '@app/common/providers/queues/wallet-queue.provi
 import { PartnerService } from './partner.service';
 import { VNDCService } from 'libs/plugins';
 import { OTPModule } from '@app/otp';
+import { AuthThirdPartyService } from './third-party.service';
 
 @Module({
   imports: [RepoModule, OTPModule, HttpModule], //để nhập các module khác cần thiết.
@@ -17,6 +18,7 @@ import { OTPModule } from '@app/otp';
     VNDCService,
     PartnerService,
     AuthenticatorService,
+    AuthThirdPartyService,
     walletQueueProvider,
     { provide: APP_FILTER, useClass: HttpExceptionFilter }, // để xử lý logic hoặc thêm các thành phần hỗ trợ (như filter xử lý lỗi).
   ],

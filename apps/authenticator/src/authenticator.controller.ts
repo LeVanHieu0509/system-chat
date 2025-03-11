@@ -292,4 +292,19 @@ export class AuthenticatorController {
   ) {
     return this._service.readAllNotifications(input.userId, input.at);
   }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.BANNERS_V2)
+  getBannersV2(@Ack() _: RmqContext) {
+    return this._service.getBannersV2();
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.ADS_BANNER)
+  getAdsBanner(@Ack() _: RmqContext) {
+    return this._service.getAdsBanner();
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.ADS_BANNER_V2)
+  getAdsBannerV2(@Ack() _: RmqContext) {
+    return this._service.getAdsBannerV2();
+  }
 }
