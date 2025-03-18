@@ -76,6 +76,8 @@ export class OTPService {
     // get OTP from temporary cache
     // const otp = OTPHelper.getOTP(key);
     const cache = await CachingService.getInstance().get<CachingOTP>(key);
+    console.log({ cache });
+
     const valid = cache && `${cache.otp}` === `${code}` && cache.type === type;
     if (valid)
       setTimeout(() => {

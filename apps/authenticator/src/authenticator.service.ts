@@ -98,9 +98,9 @@ export class AuthenticatorService {
     // }
 
     const googleAccount: Account = {
-      email: 'levanhieu@outlook.com', //UtilsService.getInstance().randomEmail(),
-      emailVerified: true,
-      googleId: '12123123332122', // UtilsService.getInstance().randomToken(12),
+      email: 'levanhieu@gmail.com', //UtilsService.getInstance().randomEmail(),
+      emailVerified: false,
+      googleId: '12123123332122123123123', // UtilsService.getInstance().randomToken(12),
       avatar: 'https://levanhieu@',
       fullName: 'Le Van hieu',
     };
@@ -939,6 +939,7 @@ export class AuthenticatorService {
     const key = email ? email : UtilsService.getInstance().toIntlPhone(phone);
 
     const valid = await this._otp.verifyOTP(key + type, otp, type);
+    console.log({ valid });
     if (!valid)
       throw new BadRequestException([
         { field: 'otp', message: VALIDATE_MESSAGE.ACCOUNT.OTP_INVALID },

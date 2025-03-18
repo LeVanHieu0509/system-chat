@@ -46,6 +46,7 @@ export class MainRepo
 {
   // chạy các truy vấn SQL thủ công
   // Điều này rất hữu ích khi bạn cần tối ưu hóa truy vấn hoặc thực hiện các tác vụ đặc thù mà ORM không hỗ trợ
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-constraint
   sql<T extends any = any>(sql: any, ...values: any[]): Promise<T> {
     // Sử dụng `$queryRaw` với template literal và truyền các giá trị
     return this._client.$queryRawUnsafe<T>(sql, ...values);

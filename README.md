@@ -109,3 +109,11 @@ Nest is [MIT licensed](LICENSE).
 
 // sudo lsof -i :
 //sudo kill -9
+
+Tóm tắt quy trình:
+
+1. Cập nhật schema.prisma với các mô hình dữ liệu (model) mới thay vì viết SQL trực tiếp.
+2. Tạo migration mới bằng lệnh prisma migrate dev --name <migration-name>.
+3. Áp dụng migration vào cơ sở dữ liệu bằng lệnh prisma migrate dev
+4. Tạo lại Prisma Client bằng lệnh prisma generate.
+5. Kiểm tra cơ sở dữ liệu để đảm bảo bảng và mối quan hệ mới đã được tạo.
