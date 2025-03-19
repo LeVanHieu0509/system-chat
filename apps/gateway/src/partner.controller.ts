@@ -6,6 +6,7 @@ import {
   QUEUES,
 } from '@app/common';
 import { AuthUser } from '@app/common/decorators/auth-user.decorator';
+import { AuthCacheInterceptor } from '@app/common/interceptors/auth-cache.interceptor';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
 import {
   Auth,
@@ -27,6 +28,7 @@ import {
   Param,
   Post,
   Query,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
@@ -135,5 +137,17 @@ export class PartnerController {
       ),
     );
     return { status: true };
+  }
+
+  // dash board
+
+  @UseInterceptors(AuthCacheInterceptor)
+  @UsePipes(new MainValidationPipe())
+  @Get('dashboard')
+  async getTotalCommission(@AuthUser() { userId }: Auth) {
+    return this._clientAuth.send<boolean, string>(
+      MESSAGE_PATTERN.AUTH.GET_TOTAL_COMMISSION,
+      userId,
+    );
   }
 }

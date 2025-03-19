@@ -417,4 +417,56 @@ export class PartnerService {
       ]);
     }
   }
+
+  async getTotalCommission(accountId: string) {
+    this._logger.log(`getTotalCommission accountId: ${accountId}`);
+
+    // Kiểm tra xem tài khoản có phải là đối tác hay không (field isPartner = true).
+    const account = await this._repo
+      .getAccount()
+      .count({ where: { id: accountId, isPartner: true } });
+
+    // Nếu không phải đối tác, ném lỗi BadRequestException với thông báo lỗi "ACCOUNT_INVALID".
+    if (!account) {
+      throw new BadRequestException([
+        { field: 'account', message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID },
+      ]);
+    }
+
+    // 📌 Bước 2: Xác định thời gian bắt đầu của tháng hiện tại
+    const now = new Date();
+    // Lấy thời gian bắt đầu của tháng hiện tại (dateFrom) từ ngày đầu tiên của tháng, giờ, phút, giây, mili giây là 0.
+    const dateFrom = new Date(
+      Date.UTC(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0),
+    );
+
+    // 📌 Bước 3: Truy vấn tổng hoa hồng, hoa hồng đã thanh toán và hoa hồng của tháng này
+    const [totalCommission, paid, commissionThisMonth] = await Promise.all([
+      // totalCommission: Truy vấn tổng hoa hồng đã kiếm được từ tất cả các giao dịch của tài khoản.
+      this._repo
+        .getAccountPartnerCommission()
+        .aggregate({ _sum: { commission: true }, where: { accountId } }),
+
+      // paid: Truy vấn số tiền hoa hồng đã được thanh toán cho tài khoản, chỉ tính các giao dịch đã được phê duyệt (isApproved: true).
+      this._repo.getAccountPartnerCommission().aggregate({
+        _sum: { paid: true },
+        where: { accountId, isApproved: true },
+      }),
+
+      // commissionThisMonth: Truy vấn hoa hồng đã kiếm được trong tháng hiện tại,
+      // chỉ lấy các giao dịch có ngày tạo (createdAt) lớn hơn hoặc bằng thời gian dateFrom (ngày đầu tháng).
+      this._repo.getAccountPartnerCommission().aggregate({
+        _sum: { commission: true },
+        where: { accountId, transaction: { createdAt: { gte: dateFrom } } },
+      }),
+    ]);
+
+    return {
+      totalCommission: totalCommission._sum.commission || 0, // Tổng hoa hồng.
+      paid: paid._sum.paid || 0, // Số tiền đã được thanh toán.
+      commissionThisMonth: commissionThisMonth._sum.commission || 0, // Số hoa hồng của tháng hiện tại.
+      // TODO calculate reward this month by commissionThisMonth
+      rewardThisMonth: 0,
+    };
+  }
 }

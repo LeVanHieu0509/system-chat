@@ -110,12 +110,10 @@ export class UserService {
     }
     let createBy = null;
     if (output.createdBy) {
-      createBy = await this._repo
-        .getUser()
-        .findUnique({
-          where: { id: output.createdBy },
-          select: { id: true, fullName: true },
-        });
+      createBy = await this._repo.getUser().findUnique({
+        where: { id: output.createdBy },
+        select: { id: true, fullName: true },
+      });
     }
     return { ...output, createBy };
   }
@@ -166,12 +164,10 @@ export class UserService {
         updatedAt: true,
       },
     });
-    const createBy = await this._repo
-      .getUser()
-      .findUnique({
-        where: { id: user.id },
-        select: { id: true, fullName: true },
-      });
+    const createBy = await this._repo.getUser().findUnique({
+      where: { id: user.id },
+      select: { id: true, fullName: true },
+    });
     return { ...output, createBy };
   }
 

@@ -307,4 +307,9 @@ export class AuthenticatorController {
   getAdsBannerV2(@Ack() _: RmqContext) {
     return this._service.getAdsBannerV2();
   }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.GET_TOTAL_COMMISSION)
+  getTotalCommission(@Payload() accountId: string, @Ack() _: RmqContext) {
+    return this._partnerService.getTotalCommission(accountId);
+  }
 }
