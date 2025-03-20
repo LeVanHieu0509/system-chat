@@ -9,6 +9,7 @@ import { AuthUser } from '@app/common/decorators/auth-user.decorator';
 import { AuthCacheInterceptor } from '@app/common/interceptors/auth-cache.interceptor';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
 import {
+  AccountCommissionHistoriesQueryDto,
   Auth,
   BuyVNDCInquiryRequestDto,
   BuyVNDCRequestDto,
@@ -149,5 +150,21 @@ export class PartnerController {
       MESSAGE_PATTERN.AUTH.GET_TOTAL_COMMISSION,
       userId,
     );
+  }
+
+  @UseInterceptors(AuthCacheInterceptor)
+  @UsePipes(new MainValidationPipe())
+  @Get('v2/dashboard/commission')
+  async getCommissionHistoriesV2(
+    @Query() query: AccountCommissionHistoriesQueryDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(
+      `getCommissionHistoriesV2 -> query: ${JSON.stringify(query)}`,
+    );
+    return this._clientAuth.send<
+      boolean,
+      { query: AccountCommissionHistoriesQueryDto; id: string }
+    >(MESSAGE_PATTERN.AUTH.GET_COMMISSION_HISTORIES_V2, { id: userId, query });
   }
 }

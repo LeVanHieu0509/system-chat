@@ -10,6 +10,7 @@ import {
 } from '@app/common';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
 import {
+  AccountCommissionHistoriesQueryDto,
   Auth,
   BuySatoshiRequestDto,
   BuyVNDCRequestDto,
@@ -467,6 +468,92 @@ export class PartnerService {
       commissionThisMonth: commissionThisMonth._sum.commission || 0, // Số hoa hồng của tháng hiện tại.
       // TODO calculate reward this month by commissionThisMonth
       rewardThisMonth: 0,
+    };
+  }
+
+  async getCommissionHistories(
+    accountId: string,
+    { page, size, date }: AccountCommissionHistoriesQueryDto,
+  ) {
+    this._logger.log(
+      `getCommissionHistories accountId: ${accountId} date: ${date}`,
+    );
+
+    // 📌 Bước 1: Kiểm tra xem tài khoản có phải là đối tác không
+    const account = await this._repo
+      .getAccount()
+      // Kiểm tra xem tài khoản có phải là đối tác (isPartner: true) không.
+      .count({ where: { id: accountId, isPartner: true } });
+
+    // Nếu không phải đối tác, ném lỗi BadRequestException với thông báo "ACCOUNT_INVALID".
+    if (!account) {
+      throw new BadRequestException([
+        { field: 'account', message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID },
+      ]);
+    }
+
+    // 📌 Bước 2: Tính toán thời gian bắt đầu (start) của tháng cần lấy hoa hồng
+    // Nếu có tham số date từ client → lấy thời gian từ đầu tháng của ngày đó.
+    // Nếu không có date → lấy thời gian hiện tại (Date.now()).
+
+    const dateFrom = new Date(date ? date : Date.now());
+    dateFrom.setDate(1); // Đặt ngày là ngày đầu tháng
+    dateFrom.setUTCHours(0, 0, 0, 0); // // Đặt giờ, phút, giây, mili giây = 0
+
+    // 📌 Bước 3: Tạo query điều kiện where cho lịch sử hoa hồng
+    // gte: dateFrom: Chỉ lấy hoa hồng từ ngày đầu tháng trở đi.
+    const where = { accountId, transaction: { createdAt: { gte: dateFrom } } };
+
+    // Nếu có date, lte (less than or equal) được đặt là ngày cuối tháng để lọc hoa hồng trong tháng đó.
+    if (date) {
+      where.transaction.createdAt['lte'] = new Date(
+        Date.UTC(
+          dateFrom.getFullYear(),
+          dateFrom.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+    }
+
+    // 📌 Bước 4: Lấy dữ liệu phân trang và lịch sử hoa hồng
+    const pagination = this._repo.getPagination(page, size);
+
+    // Lấy số lượng hoa hồng (commission) trong khoảng thời gian từ dateFrom (tháng hiện tại).
+    // Lấy chi tiết các hoa hồng (commissionHistories) trong phạm vi phân trang:
+    // Trường skip và take giúp phân trang kết quả trả về.
+    const [commission, commissionHistories] = await Promise.all([
+      this._repo
+        .getAccountPartnerCommission()
+        .aggregate({ _count: { id: true }, where }),
+      this._repo.getAccountPartnerCommission().findMany({
+        where,
+        skip: pagination.skip,
+        take: pagination.take,
+        select: {
+          id: true,
+          totalValue: true,
+          commission: true,
+          isApproved: true,
+          transaction: {
+            select: {
+              id: true,
+              status: true,
+              accessTradeId: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      page, // số trang hiện tại.
+      totalRecords: commission._count.id, // tổng số lịch sử hoa hồng
+      data: commissionHistories, // danh sách các hoa hồng đã lấy từ database.
     };
   }
 }

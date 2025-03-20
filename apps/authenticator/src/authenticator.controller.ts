@@ -2,6 +2,7 @@ import { MESSAGE_PATTERN } from '@app/common/constants';
 import { Ack } from '@app/common/decorators/ack.decorator';
 import {
   Account,
+  AccountCommissionHistoriesQueryDto,
   Auth,
   BuySatoshiRequestDto,
   BuyVNDCRequestDto,
@@ -311,5 +312,14 @@ export class AuthenticatorController {
   @MessagePattern(MESSAGE_PATTERN.AUTH.GET_TOTAL_COMMISSION)
   getTotalCommission(@Payload() accountId: string, @Ack() _: RmqContext) {
     return this._partnerService.getTotalCommission(accountId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.GET_COMMISSION_HISTORIES_V2)
+  getCommissionHistories(
+    @Payload()
+    { id, query }: { query: AccountCommissionHistoriesQueryDto; id: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.getCommissionHistories(id, query);
   }
 }
