@@ -43,27 +43,12 @@ export class AuthenticatorController {
     return this._service.getHello();
   }
 
-  @MessagePattern(MESSAGE_PATTERN.AUTH.REQUEST_OTP)
-  async requestOTP(@Payload() body: OTPRequestDto, @Ack() _: RmqContext) {
-    return this._service.processOTP(body);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.AUTH.VERIFY_OTP)
-  async verifyOTP(@Payload() body: VerifyOTPRequestDto, @Ack() _: RmqContext) {
-    return this._service.checkOTP(body);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.AUTH.FIND_ACCOUNT)
-  async findAccount(
-    @Payload() params: FindAccountRequestDto,
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SIGN_IN)
+  async signIn(
+    @Payload() body: SigninRequestDto,
     @Ack() _: RmqContext,
-  ) {
-    return this._service.getAccount(params);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.AUTH.SIGN_UP)
-  async signup(@Payload() input: Account, @Ack() _: RmqContext) {
-    return this._service.saveAccount(input);
+  ): Promise<Account> {
+    return this._service.signIn(body.phone, body.passcode);
   }
 
   @MessagePattern(MESSAGE_PATTERN.AUTH.SIGN_IN_WITH_GOOGLE)
@@ -87,40 +72,15 @@ export class AuthenticatorController {
     return this._service.verifyPasscodeSignIn(id, passcode);
   }
 
-  @MessagePattern(MESSAGE_PATTERN.AUTH.GET_PROFILE)
-  async getProfile(
-    @Payload() id: string,
-    @Ack() _: RmqContext,
-  ): Promise<Account> {
-    const account = await this._service.getAccount({ id }, true);
-    delete account.passcode;
-    return account;
+  // ------------------------------ PHONE - OTP ---------------------------------- //
+  @MessagePattern(MESSAGE_PATTERN.AUTH.REQUEST_OTP)
+  async requestOTP(@Payload() body: OTPRequestDto, @Ack() _: RmqContext) {
+    return this._service.processOTP(body);
   }
 
-  @MessagePattern(MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT)
-  async saveAccount(@Payload() input: Account, @Ack() _: RmqContext) {
-    return this._service.saveAccount(input);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.AUTH.CHANGE_PHONE)
-  async changePhone(
-    @Payload() { phone, userId }: { phone: string; userId: string },
-    @Ack() _: RmqContext,
-  ) {
-    return this._service.changePhone(phone, userId);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.AUTH.CONFIRM_PHONE)
-  async confirmPhone(@Payload() userId: string, @Ack() _: RmqContext) {
-    return this._service.confirmPhone(userId);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.VNDC.BUY_SATOSHI)
-  async createTransactionForBuyingSatoshi(
-    @Payload() input: BuySatoshiRequestDto & { accountId: string },
-    @Ack() _: RmqContext,
-  ) {
-    return this._partnerService.createTransactionForBuyingSatoshi(input);
+  @MessagePattern(MESSAGE_PATTERN.AUTH.VERIFY_OTP)
+  async verifyOTP(@Payload() body: VerifyOTPRequestDto, @Ack() _: RmqContext) {
+    return this._service.checkOTP(body);
   }
 
   @MessagePattern(MESSAGE_PATTERN.AUTH.CHECK_PHONE)
@@ -139,6 +99,19 @@ export class AuthenticatorController {
     return this._service.preCheckPhone(body);
   }
 
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CHANGE_PHONE)
+  async changePhone(
+    @Payload() { phone, userId }: { phone: string; userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.changePhone(phone, userId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CONFIRM_PHONE)
+  async confirmPhone(@Payload() userId: string, @Ack() _: RmqContext) {
+    return this._service.confirmPhone(userId);
+  }
+
   @MessagePattern(MESSAGE_PATTERN.AUTH.RESET_PASSCODE)
   async resetPasscode(
     @Payload() body: ResetPasscodeRequestDto,
@@ -147,23 +120,7 @@ export class AuthenticatorController {
     return this._service.resetPasscode(body);
   }
 
-  @MessagePattern(MESSAGE_PATTERN.AUTH.SIGN_IN)
-  async signIn(
-    @Payload() body: SigninRequestDto,
-    @Ack() _: RmqContext,
-  ): Promise<Account> {
-    return this._service.signIn(body.phone, body.passcode);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.AUTH.EDIT_PROFILE)
-  async editProfile(
-    @Payload()
-    { userId, ...account }: UserProfileRequestDto & { userId: string },
-    @Ack() _: RmqContext,
-  ) {
-    return this._service.editAccount(account, userId);
-  }
-
+  // ------------------------------ EMAIL ---------------------------------- //
   @MessagePattern(MESSAGE_PATTERN.AUTH.CHANGE_EMAIL)
   async changeEmail(
     @Payload()
@@ -182,6 +139,7 @@ export class AuthenticatorController {
     return this._service.confirmEmail(input, userId);
   }
 
+  // ------------------------------ CONTACT ---------------------------------- //
   @MessagePattern(MESSAGE_PATTERN.AUTH.SYNC_CONTACT)
   syncContacts(
     @Payload() input: SyncContactRequestDto & { id: string },
@@ -196,6 +154,21 @@ export class AuthenticatorController {
     return this._service.getContacts(id);
   }
 
+  // ------------------------------ PROFILE ---------------------------------- //
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.FIND_ACCOUNT)
+  async findAccount(
+    @Payload() params: FindAccountRequestDto,
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.getAccount(params);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SIGN_UP)
+  async signup(@Payload() input: Account, @Ack() _: RmqContext) {
+    return this._service.saveAccount(input);
+  }
+
   @MessagePattern(MESSAGE_PATTERN.AUTH.PROFILE_SETTING)
   settingProfile(
     @Payload()
@@ -207,6 +180,15 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._service.settingProfile(userId, id, receiveNotify);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.EDIT_PROFILE)
+  async editProfile(
+    @Payload()
+    { userId, ...account }: UserProfileRequestDto & { userId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.editAccount(account, userId);
   }
 
   @MessagePattern(MESSAGE_PATTERN.AUTH.UPDATE_ACCOUNT_SETTING)
@@ -227,12 +209,21 @@ export class AuthenticatorController {
     return this._service.updateDeviceToken(id, deviceToken);
   }
 
+  // ------------------------------ TRANSACTION ---------------------------------- //
   @MessagePattern(MESSAGE_PATTERN.AUTH.TRANS_HISTORY)
   async getTransactionHistory(
     @Payload() { id, ...others }: TransactionHistoryQueryDto & { id: string },
     @Ack() _: RmqContext,
   ) {
     return this._service.getTransactionHistory(id, others);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.BUY_SATOSHI)
+  async createTransactionForBuyingSatoshi(
+    @Payload() input: BuySatoshiRequestDto & { accountId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.createTransactionForBuyingSatoshi(input);
   }
 
   // ------------------------------ NOTIFICATION ---------------------------------- //
