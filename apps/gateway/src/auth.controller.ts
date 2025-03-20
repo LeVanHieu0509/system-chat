@@ -40,6 +40,7 @@ import {
   OTPRequestDto,
   PaginationDto,
   ReadAllNotificationRequestDto,
+  ReferralQueryDto,
   RefreshTokenRequestDto,
   ResetPasscodeRequestDto,
   SettingAccountRequestDto,
@@ -625,6 +626,23 @@ export class AuthController {
       MESSAGE_PATTERN.AUTH.ADS_BANNER_V2,
       {},
     );
+  }
+
+  @UseInterceptors(AuthCacheInterceptor)
+  @UsePipes(new MainValidationPipe())
+  @Get('referral')
+  async getReferrals(
+    @Query() query: ReferralQueryDto,
+    @AuthUser() { userId }: Auth,
+  ) {
+    this._logger.log(`getReferrals -> query: ${JSON.stringify(query)}`);
+    return this._clientAuth.send<
+      boolean,
+      { id: string; input: ReferralQueryDto }
+    >(MESSAGE_PATTERN.AUTH.GET_REFERRAL_BY_ACCOUNT, {
+      id: userId,
+      input: query,
+    });
   }
 }
 

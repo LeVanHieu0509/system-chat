@@ -41,7 +41,7 @@ import { firstValueFrom } from 'rxjs';
 @ApiResponse({ status: 401, description: 'Unauthorized' })
 @ApiResponse({ status: 403, description: 'Forbidden' })
 @ApiResponse({ status: 404, description: 'Not Found' })
-@Controller('api/partner')
+@Controller('partner')
 export class PartnerController {
   private readonly _logger = new Logger(PartnerController.name);
 

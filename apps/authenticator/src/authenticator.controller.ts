@@ -12,6 +12,7 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   PaginationDto,
+  ReferralQueryDto,
   ResetPasscodeRequestDto,
   SettingAccountRequestDto,
   SigninRequestDto,
@@ -99,36 +100,6 @@ export class AuthenticatorController {
   @MessagePattern(MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT)
   async saveAccount(@Payload() input: Account, @Ack() _: RmqContext) {
     return this._service.saveAccount(input);
-  }
-
-  // --------------------------------------- PARTNER -------------------------------------------//
-  @MessagePattern(MESSAGE_PATTERN.VNDC.CREATE_BUY_VNDC_TRANSACTION)
-  createBuyVNDCOrder(
-    @Payload() input: BuyVNDCRequestDto & { accountId: string },
-    @Ack() _: RmqContext,
-  ) {
-    return this._partnerService.createBuyVNDCTransaction(input);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.VNDC.CANCEL_TRANSACTION)
-  cancelTransaction(@Payload() orderId: string, @Ack() _: RmqContext) {
-    return this._partnerService.cancelTransactionById(orderId);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.VNDC.UPDATE_STATUS_TRANSACTION)
-  updateStatusTransaction(
-    @Payload() { orderId, accountId }: { orderId: string; accountId: string },
-    @Ack() _: RmqContext,
-  ) {
-    return this._partnerService.updateStatusTransaction(accountId, orderId);
-  }
-
-  @MessagePattern(MESSAGE_PATTERN.VNDC.GET_TRANSACTION)
-  getPartnerTransactions(
-    @Payload() input: VersionQueryDto & Auth,
-    @Ack() _: RmqContext,
-  ) {
-    return this._partnerService.getTransactionByAccountId(input);
   }
 
   @MessagePattern(MESSAGE_PATTERN.AUTH.CHANGE_PHONE)
@@ -264,6 +235,8 @@ export class AuthenticatorController {
     return this._service.getTransactionHistory(id, others);
   }
 
+  // ------------------------------ NOTIFICATION ---------------------------------- //
+
   @UseInterceptors(ExecutionTimeLoggerInterceptor)
   @MessagePattern(MESSAGE_PATTERN.AUTH.NOTIFICATION)
   getNotification(
@@ -294,6 +267,8 @@ export class AuthenticatorController {
     return this._service.readAllNotifications(input.userId, input.at);
   }
 
+  // ------------------------------ BANNER ---------------------------------- //
+
   @MessagePattern(MESSAGE_PATTERN.AUTH.BANNERS_V2)
   getBannersV2(@Ack() _: RmqContext) {
     return this._service.getBannersV2();
@@ -309,6 +284,16 @@ export class AuthenticatorController {
     return this._service.getAdsBannerV2();
   }
 
+  // ------------------------------ REFERRALS ---------------------------------- //
+  @MessagePattern(MESSAGE_PATTERN.AUTH.GET_REFERRAL_BY_ACCOUNT)
+  getReferrals(
+    @Payload() { id, input }: { id: string; input: ReferralQueryDto },
+    @Ack() _: RmqContext,
+  ) {
+    return this._service.getReferrals(id, input);
+  }
+
+  // ------------------------------ PARTNER ---------------------------------- //
   @MessagePattern(MESSAGE_PATTERN.AUTH.GET_TOTAL_COMMISSION)
   getTotalCommission(@Payload() accountId: string, @Ack() _: RmqContext) {
     return this._partnerService.getTotalCommission(accountId);
@@ -320,6 +305,35 @@ export class AuthenticatorController {
     { id, query }: { query: AccountCommissionHistoriesQueryDto; id: string },
     @Ack() _: RmqContext,
   ) {
-    return this._partnerService.getCommissionHistories(id, query);
+    return this._partnerService.getCommissionHistoriesV2(id, query);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.CREATE_BUY_VNDC_TRANSACTION)
+  createBuyVNDCOrder(
+    @Payload() input: BuyVNDCRequestDto & { accountId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.createBuyVNDCTransaction(input);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.CANCEL_TRANSACTION)
+  cancelTransaction(@Payload() orderId: string, @Ack() _: RmqContext) {
+    return this._partnerService.cancelTransactionById(orderId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.UPDATE_STATUS_TRANSACTION)
+  updateStatusTransaction(
+    @Payload() { orderId, accountId }: { orderId: string; accountId: string },
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.updateStatusTransaction(accountId, orderId);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.VNDC.GET_TRANSACTION)
+  getPartnerTransactions(
+    @Payload() input: VersionQueryDto & Auth,
+    @Ack() _: RmqContext,
+  ) {
+    return this._partnerService.getTransactionByAccountId(input);
   }
 }

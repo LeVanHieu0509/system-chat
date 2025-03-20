@@ -6,6 +6,7 @@ import {
   CASHBACK_TYPE,
   CURRENCY_CODE,
   DEFAULT_EXPIRES_GET,
+  LATEST_VERSION,
   MESSAGE_PATTERN,
   NOTIFICATION_TYPE,
   OTP_TYPE,
@@ -26,6 +27,7 @@ import {
   FindAccountRequestDto,
   OTPRequestDto,
   PaginationDto,
+  ReferralQueryDto,
   ResetPasscodeRequestDto,
   SignupRequestDto,
   SyncContactRequestDto,
@@ -62,7 +64,7 @@ import { UtilsService } from 'libs/utils/src';
 import { firstValueFrom, lastValueFrom } from 'rxjs';
 import { AuthThirdPartyService } from './third-party.service';
 
-// const HiddenChar = '*********';
+const HiddenChar = '*********';
 
 const REASON = {
   RESET_PASSCODE: 'Đặt lại mật khẩu.',
@@ -1588,5 +1590,68 @@ export class AuthenticatorService {
         stopAt: true,
       },
     });
+  }
+
+  async getReferrals(id: string, input: ReferralQueryDto) {
+    // 📌 Bước 1: Log thông tin đầu vào
+    this._logger.log(
+      `getReferrals referralBy: ${id} input: ${JSON.stringify(input)}`,
+    );
+
+    const { page, size, version } = input;
+
+    // 📌 Bước 2: Lấy thông tin phân trang
+    const pagination = this._repo.getPagination(page, size);
+
+    // Bước 3: Truy vấn tổng số referrals và danh sách referrals
+    /*
+      totalRecords: Lấy tổng số referrals (số tài khoản đã được giới thiệu bởi id).
+      accounts: Lấy danh sách thông tin các tài khoản được giới thiệu, bao gồm:
+      phone, avatar, fullName, email, createdAt, kycStatus.
+      tranSenders: Lấy thông tin giao dịch gửi tiền từ những người dùng này về id (referral receiver).
+
+    */
+    const [totalRecords, accounts] = await Promise.all([
+      this._repo.getAccount().count({
+        where: { accountReferralFrom: { referralBy: id } },
+        select: { id: true },
+      }),
+      this._repo.getAccount().findMany({
+        skip: pagination.skip,
+        take: pagination.take,
+        where: { accountReferralFrom: { referralBy: id } },
+        select: {
+          id: true,
+          phone: true,
+          avatar: true,
+          fullName: true,
+          email: true,
+          createdAt: true,
+          kycStatus: true,
+          tranSenders: { select: { amount: true }, where: { receiverId: id } },
+        },
+      }),
+    ]);
+
+    /*
+      Giải thích:
+
+      Xử lý amount: Lấy số tiền từ giao dịch gửi tiền nếu có (tranSenders[0]?.amount).
+      Nếu version là LATEST_VERSION, giữ nguyên số tiền; nếu không thì làm tròn số (~~amount).
+      Ẩn số điện thoại: Sử dụng HiddenChar để ẩn phần đầu số điện thoại, chỉ giữ lại 3 ký tự cuối.
+      Xoá tranSenders: Để trả về dữ liệu sạch hơn, xoá trường tranSenders khỏi kết quả.
+    */
+    const data = accounts.map((acc) => {
+      const amount = acc.tranSenders[0]?.amount || '0';
+      acc['amount'] = version === LATEST_VERSION ? amount : ~~amount;
+      acc.phone = acc.phone
+        ? HiddenChar +
+          acc.phone.substring(acc.phone.length - 3, acc.phone.length)
+        : acc.phone;
+      acc.tranSenders = undefined;
+      return acc;
+    });
+
+    return { page, totalRecords: totalRecords.id, data };
   }
 }

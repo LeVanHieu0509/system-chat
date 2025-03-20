@@ -556,4 +556,73 @@ export class PartnerService {
       data: commissionHistories, // danh sách các hoa hồng đã lấy từ database.
     };
   }
+
+  async getCommissionHistoriesV2(
+    accountId: string,
+    { page, size, date }: AccountCommissionHistoriesQueryDto,
+  ) {
+    this._logger.log(
+      `getCommissionHistories accountId: ${accountId} date: ${date}`,
+    );
+
+    const account = await this._repo
+      .getAccount()
+      .count({ where: { id: accountId, isPartner: true } });
+    if (!account) {
+      throw new BadRequestException([
+        { field: 'account', message: VALIDATE_MESSAGE.ACCOUNT.ACCOUNT_INVALID },
+      ]);
+    }
+
+    const dateFrom = new Date(date ? date : Date.now());
+    dateFrom.setDate(1);
+    dateFrom.setUTCHours(0, 0, 0, 0);
+
+    const where = { accountId, transaction: { createdAt: { gte: dateFrom } } };
+    if (date) {
+      where.transaction.createdAt['lte'] = new Date(
+        Date.UTC(
+          dateFrom.getFullYear(),
+          dateFrom.getMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+    }
+
+    const pagination = this._repo.getPagination(page, size);
+    const [commission, commissionHistories] = await Promise.all([
+      this._repo
+        .getAccountPartnerCommission()
+        .aggregate({ _count: { id: true }, where }),
+      this._repo.getAccountPartnerCommission().findMany({
+        where,
+        skip: pagination.skip,
+        take: pagination.take,
+        select: {
+          id: true,
+          totalValue: true,
+          commission: true,
+          isApproved: true,
+          transaction: {
+            select: {
+              id: true,
+              status: true,
+              accessTradeId: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      page,
+      totalRecords: commission._count.id,
+      data: commissionHistories,
+    };
+  }
 }
