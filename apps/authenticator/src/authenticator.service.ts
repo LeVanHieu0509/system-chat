@@ -100,9 +100,9 @@ export class AuthenticatorService {
     // }
 
     const googleAccount: Account = {
-      email: 'levanhieu@gmail.com', //UtilsService.getInstance().randomEmail(),
+      email: 'levanhieu14@gmail.com', //UtilsService.getInstance().randomEmail(),
       emailVerified: false,
-      googleId: '12123123332122123123123', // UtilsService.getInstance().randomToken(12),
+      googleId: '12123123332122123123123232', // UtilsService.getInstance().randomToken(12),
       avatar: 'https://levanhieu@',
       fullName: 'Le Van hieu',
     };
@@ -1653,5 +1653,21 @@ export class AuthenticatorService {
     });
 
     return { page, totalRecords: totalRecords.id, data };
+  }
+
+  async checkReferralCode(code: string) {
+    this._logger.log(`checkReferralCode code: ${code}`);
+
+    const where: Prisma.AccountWhereInput = {};
+    if (isPhoneNumber(code, 'VN')) {
+      where.phone = UtilsService.getInstance().toIntlPhone(code);
+    } else if (isEmail(code)) {
+      where.email = code;
+    } else {
+      where.referralCode = code;
+    }
+
+    const account = await this._repo.getAccount().count({ where });
+    return { status: !!account };
   }
 }

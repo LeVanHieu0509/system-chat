@@ -35,6 +35,7 @@ import {
   ChangeEmailRequestDto,
   ChangePhoneRequestDto,
   CheckPhoneRequestDto,
+  CheckReferralCodeQueryDto,
   ConfirmEmailRequestDto,
   FindAccountRequestDto,
   OTPRequestDto,
@@ -643,6 +644,17 @@ export class AuthController {
       id: userId,
       input: query,
     });
+  }
+
+  @Public()
+  @UsePipes(new MainValidationPipe())
+  @Get('check-referral-code')
+  async checkReferralCode(@Query() query: CheckReferralCodeQueryDto) {
+    this._logger.log(`checkReferralCode -> query: ${JSON.stringify(query)}`);
+    return this._clientAuth.send<boolean, string>(
+      MESSAGE_PATTERN.AUTH.CHECK_REFERRAL_CODE,
+      query.referralCode,
+    );
   }
 }
 

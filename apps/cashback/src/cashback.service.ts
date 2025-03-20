@@ -7,6 +7,7 @@ import {
   OTP_TYPE,
   PARTNER_TRANS_TYPE,
   QUEUES,
+  REWARD_NON_REFERRAL,
   STATUS,
 } from '@app/common';
 import { VALIDATE_MESSAGE } from '@app/common/validate-message';
@@ -24,6 +25,7 @@ import {
 import { ClientProxy } from '@nestjs/microservices';
 import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { AMOUNT_REFERRAL_BY, AMOUNT_REFERRAL_FROM } from 'libs/config';
 import { VNDCService } from 'libs/plugins';
 
 type CashbackCaching = {
@@ -271,5 +273,20 @@ export class CashbackService {
     });
     // TODO remove convert to number in future
     return cbAvailable ? ~~cbAvailable.amount : 0;
+  }
+
+  async getIntroduce() {
+    this._logger.log(`getIntroduce`);
+
+    const config = await this._repo.getConfigCommission().findFirst({
+      select: { referralFrom: true, referralBy: true, nonReferral: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const referralFrom = config ? config.referralFrom : AMOUNT_REFERRAL_FROM;
+    const referralBy = config ? config.referralBy : AMOUNT_REFERRAL_BY;
+    const nonReferral = config ? config.nonReferral : REWARD_NON_REFERRAL;
+
+    return { referralFrom, referralBy, nonReferral };
   }
 }

@@ -128,4 +128,11 @@ export class CashbackController {
       },
     );
   }
+
+  @Public()
+  @UsePipes(new MainValidationPipe())
+  @Get('introduce')
+  async getIntroduceValue() {
+    return this._clientCashback.send(MESSAGE_PATTERN.CASHBACK.INTRODUCE, '');
+  }
 }

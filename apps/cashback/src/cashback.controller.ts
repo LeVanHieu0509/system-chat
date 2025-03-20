@@ -80,4 +80,9 @@ export class CashbackController {
     const a = this._accessTrader.getTransactionFromAccessTradeOnApproved();
     return a;
   }
+
+  @MessagePattern(MESSAGE_PATTERN.CASHBACK.INTRODUCE)
+  getIntroduce(@Ack() _: RmqContext) {
+    return this._service.getIntroduce();
+  }
 }

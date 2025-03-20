@@ -169,6 +169,11 @@ export class AuthenticatorController {
     return this._service.saveAccount(input);
   }
 
+  @MessagePattern(MESSAGE_PATTERN.AUTH.SAVE_NEW_ACCOUNT)
+  async saveAccount(@Payload() input: Account, @Ack() _: RmqContext) {
+    return this._service.saveAccount(input);
+  }
+
   @MessagePattern(MESSAGE_PATTERN.AUTH.PROFILE_SETTING)
   settingProfile(
     @Payload()
@@ -326,5 +331,20 @@ export class AuthenticatorController {
     @Ack() _: RmqContext,
   ) {
     return this._partnerService.getTransactionByAccountId(input);
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.GET_PROFILE)
+  async getProfile(
+    @Payload() id: string,
+    @Ack() _: RmqContext,
+  ): Promise<Account> {
+    const account = await this._service.getAccount({ id }, true);
+    delete account.passcode;
+    return account;
+  }
+
+  @MessagePattern(MESSAGE_PATTERN.AUTH.CHECK_REFERRAL_CODE)
+  checkReferralCode(@Payload() referralCode: string, @Ack() _: RmqContext) {
+    return this._service.checkReferralCode(referralCode);
   }
 }
